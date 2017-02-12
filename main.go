@@ -22,9 +22,10 @@ import (
 )
 
 var opts struct {
-	defaultPort  string
-	tlsOnConnect bool
-	showVersion  bool
+	defaultPort    string
+	defaultPortInt int
+	tlsOnConnect   bool
+	showVersion    bool
 }
 
 type programStatus struct {
@@ -51,6 +52,13 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
+
+	dp, err := PortParse(opts.defaultPort)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: can't parse %q: %s\n", os.Args[0], opts.defaultPort, err)
+		os.Exit(1)
+	}
+	opts.defaultPortInt = dp
 
 	messages := make(chan string, 10)
 	shuttingDown := &sync.WaitGroup{}
