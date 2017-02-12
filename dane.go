@@ -44,24 +44,30 @@ func peerCertificateVerifier(
 	// we want to report _all_ matches, for diagnostics
 	seenMatch := false
 
-	// FIXME: SECURITY: THIS DOESN'T CONFIRM CERTS ARE LINKED IN A CHAIN!
 	for _, tlsa := range vc.tlsaSet.RRs {
 		switch tlsa.Usage {
+
 		case 3: // DANE-EE per RFC7218
 			err := tlsa.Verify(eeCert)
 			if err == nil {
 				vc.Messagef("TLSA DANE-EE(3) match: %s", TLSAShortString(tlsa))
 				seenMatch = true
 			}
+
 		case 2: // DANE-TA per RFC7218
 			for i, cert := range caCerts {
 				err := tlsa.Verify(cert)
 				if err == nil {
-					vc.Messagef("TLSA DANE-TA(2) match against parent %d: %s", i, TLSAShortString(tlsa))
-					seenMatch = true
-					// if a self-signed cert appears multiple times, report that.
+					if vc.chainValid(eeCert, cert, caCerts, i) {
+						vc.Messagef("TLSA DANE-TA(2) match against chain position %d: %s", i+2, TLSAShortString(tlsa))
+						seenMatch = true
+						// if a self-signed cert appears multiple times, report that; don't abort
+					} else {
+						vc.Errorf("TLSA DANE(2) match against UNCHAINED cert, position %d: %s", i+2, TLSAShortString(tlsa))
+					}
 				}
 			}
+
 		}
 	}
 
@@ -69,4 +75,23 @@ func peerCertificateVerifier(
 		return nil
 	}
 	return errors.New("danetls: no trust anchors matched certificate chain")
+}
+
+func (vc validationContext) chainValid(eeCert, anchorCert *x509.Certificate, caCerts []*x509.Certificate, caIndex int) bool {
+	opts := x509.VerifyOptions{
+		Roots:         x509.NewCertPool(),
+		CurrentTime:   vc.time,
+		DNSName:       vc.hostname,
+		Intermediates: x509.NewCertPool(),
+	}
+
+	for _, cert := range caCerts[:caIndex] {
+		opts.Intermediates.AddCert(cert)
+	}
+	opts.Roots.AddCert(anchorCert)
+	_, err := eeCert.Verify(opts)
+	if err == nil {
+		return true
+	}
+	return false
 }

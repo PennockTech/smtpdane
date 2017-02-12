@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/smtp"
 	"net/textproto"
+	"time"
 )
 
 type validationContext struct {
@@ -20,6 +21,7 @@ type validationContext struct {
 	ip       net.IP
 	port     int
 	status   *programStatus
+	time     time.Time
 }
 
 func (vc validationContext) Messagef(spec string, params ...interface{}) {
@@ -73,6 +75,7 @@ func probeHost(hostSpec string, status *programStatus) {
 			ip:       ip,
 			port:     port,
 			status:   status,
+			time:     time.Now(),
 		}.probeAddr()
 	}
 }
