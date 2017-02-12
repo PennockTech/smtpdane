@@ -28,7 +28,8 @@ are multiple IP addresses, then each will be connected to, in parallel.
 2. Outbound TCP, on port 25 and any other ports required for monitoring SMTP.
    (587 and 465 are common choices).
 3. Stdio, ability to write to stdout.
-4. No filesystem access should be required, if statically linked.
+4. `/etc/resolv.conf` unless the `DNS_RESOLVER` environment variable is set.
+5. No other filesystem access should be required, if statically linked.
 
 
 ## Installation
@@ -48,6 +49,11 @@ To build as a static binary for deployment into a lib-less environment:
 ```sh
 go build -ldflags "-linkmode external -extldflags -static"
 ```
+
+At this time there is no vendoring of dependencies.  If this matters in your
+environment, capture them for your use-cases.  If our dependency list grows to
+include packages with unstable APIs then this decision will be revisited.
+
 
 ## Invoking
 
