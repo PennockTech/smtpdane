@@ -8,10 +8,28 @@ package main
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net"
 	"net/smtp"
 	"net/textproto"
 )
+
+type validationContext struct {
+	tlsaSet  *TLSAset
+	hostname string
+	ip       net.IP
+	port     int
+	status   *programStatus
+}
+
+func (vc validationContext) Messagef(spec string, params ...interface{}) {
+	vc.status.Message(fmt.Sprintf("[%s %v] ", vc.hostname, vc.ip) + fmt.Sprintf(spec, params...))
+}
+
+func (vc validationContext) Errorf(spec string, params ...interface{}) {
+	vc.Messagef(spec, params...)
+	vc.status.AddErr()
+}
 
 // probeHost is the top-level function of a go-routine and is responsible for
 // probing one remote SMTP connection.
@@ -45,33 +63,39 @@ func probeHost(hostSpec string, status *programStatus) {
 
 	for _, ip := range ipList {
 		status.probing.Add(1)
-		go probeAddr(ip, hostname, port, tlsaSet, status)
+		go validationContext{
+			tlsaSet:  tlsaSet,
+			hostname: hostname,
+			ip:       ip,
+			port:     port,
+			status:   status,
+		}.probeAddr()
 	}
 }
 
-func probeAddr(ip net.IP, hostname string, port int, tlsaSet *TLSAset, status *programStatus) {
-	defer status.probing.Done()
+func (vc validationContext) probeAddr() {
+	defer vc.status.probing.Done()
 
-	conn, err := net.DialTCP("tcp", nil, &net.TCPAddr{ip, port, ""})
+	conn, err := net.DialTCP("tcp", nil, &net.TCPAddr{vc.ip, vc.port, ""})
 	if err != nil {
-		status.Errorf("dial failed: %s", err)
+		vc.status.Errorf("dial failed: %s", err)
 		return
 	}
 
 	tlsConfig := &tls.Config{
-		ServerName:            hostname,
+		ServerName:            vc.hostname,
 		InsecureSkipVerify:    true, // we verify ourselves in the VerifyPeerCertificate
-		VerifyPeerCertificate: peerCertificateVerifierFor(tlsaSet),
+		VerifyPeerCertificate: peerCertificateVerifierFor(vc),
 	}
 
 	if opts.tlsOnConnect {
-		tryTLSOnConn(conn, hostname, ip, tlsConfig, status)
+		vc.tryTLSOnConn(conn, tlsConfig)
 		return
 	}
 
-	s, err := smtp.NewClient(conn, hostname)
+	s, err := smtp.NewClient(conn, vc.hostname)
 	if err != nil {
-		status.Errorf("[%s %v] failed to establish SMTP client on connection: %s", hostname, ip, err)
+		vc.Errorf("failed to establish SMTP client on connection: %s", err)
 		_ = conn.Close()
 		return
 	}
@@ -83,48 +107,48 @@ func probeAddr(ip net.IP, hostname string, port int, tlsaSet *TLSAset, status *p
 	// speak).
 	err = s.Hello(opts.heloName)
 	if err != nil {
-		status.Errorf("[%s %v] EHLO failed: %s", hostname, ip, err)
+		vc.Errorf("EHLO failed: %s", err)
 		s.Close()
 		return
 	}
 
 	ok, _ := s.Extension("STARTTLS")
 	if !ok {
-		status.Errorf("[%s %v] server does not advertise STARTTLS", hostname, ip)
+		vc.Errorf("server does not advertise STARTTLS")
 		s.Close()
 		return
 	}
 
-	status.Messagef("[%s %v] issuing STARTTLS", hostname, ip)
+	vc.Messagef("issuing STARTTLS")
 	err = s.StartTLS(tlsConfig)
 	if err != nil {
-		status.Errorf("[%s %v] STARTTLS failed: %s", hostname, ip, err)
+		vc.Errorf("STARTTLS failed: %s", err)
 	}
 	err = s.Quit()
 	if err != nil {
-		status.Errorf("[%s %v] QUIT failed: %s", hostname, ip, err)
+		vc.Errorf("QUIT failed: %s", err)
 	}
 	return
 }
 
-func tryTLSOnConn(conn net.Conn, hostname string, ip net.IP, tlsConfig *tls.Config, status *programStatus) {
-	status.Messagef("[%s %v] starting TLS immediately", hostname, ip)
+func (vc validationContext) tryTLSOnConn(conn net.Conn, tlsConfig *tls.Config) {
+	vc.Messagef("starting TLS immediately")
 	c := tls.Client(conn, tlsConfig)
 	t := textproto.NewConn(c)
 
 	_, _, err := t.ReadResponse(220)
 	if err != nil {
 		t.Close()
-		status.Errorf("[%s %v] banner read failed: %s", hostname, ip, err)
+		vc.Errorf("banner read failed: %s", err)
 		return
 	}
 
-	id, err := t.Cmd("EHLO %s", hostname)
+	id, err := t.Cmd("EHLO %s", vc.hostname)
 	t.StartResponse(id)
 	_, _, err = t.ReadResponse(250)
 	t.EndResponse(id)
 	if err != nil {
-		status.Errorf("[%s %v] EHLO failed: %s", hostname, ip, err)
+		vc.Errorf("EHLO failed: %s", err)
 	}
 
 	id, err = t.Cmd("QUIT")
@@ -132,7 +156,7 @@ func tryTLSOnConn(conn net.Conn, hostname string, ip net.IP, tlsConfig *tls.Conf
 	_, _, err = t.ReadResponse(221)
 	t.EndResponse(id)
 	if err != nil {
-		status.Errorf("[%s %v] QUIT failed: %s", hostname, ip, err)
+		vc.Errorf("QUIT failed: %s", err)
 	}
 	t.Close()
 }
