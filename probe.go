@@ -36,13 +36,20 @@ func probeHost(hostSpec string, status *programStatus) {
 
 	status.Messagef("found %d addresses for %q: %v", len(ipList), hostname, ipList)
 
+	tlsaSet, err := resolveTLSA(hostname, port)
+	if err != nil {
+		status.Errorf("error resolving TLSA for %q port %d: %v", hostname, port, err)
+		return
+	}
+	status.Messagef("found %d TLSA records for %q", len(tlsaSet.RRs), tlsaSet.name)
+
 	for _, ip := range ipList {
 		status.probing.Add(1)
-		go probeAddr(ip, hostname, port, status)
+		go probeAddr(ip, hostname, port, tlsaSet, status)
 	}
 }
 
-func probeAddr(ip net.IP, hostname string, port int, status *programStatus) {
+func probeAddr(ip net.IP, hostname string, port int, tlsaSet *TLSAset, status *programStatus) {
 	defer status.probing.Done()
 
 	conn, err := net.DialTCP("tcp", nil, &net.TCPAddr{ip, port, ""})
@@ -54,7 +61,7 @@ func probeAddr(ip net.IP, hostname string, port int, status *programStatus) {
 	tlsConfig := &tls.Config{
 		ServerName:            hostname,
 		InsecureSkipVerify:    true, // we verify ourselves in the VerifyPeerCertificate
-		VerifyPeerCertificate: nil,  // FIXME
+		VerifyPeerCertificate: peerCertificateVerifierFor(tlsaSet),
 	}
 
 	if opts.tlsOnConnect {

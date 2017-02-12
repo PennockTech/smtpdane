@@ -102,13 +102,13 @@ func resolveSecure(hostname string) ([]net.IP, error) {
 			}
 			switch typ {
 			case dns.TypeA:
-				if ip, ok := rr.(*dns.A); ok {
+				if ip, ok := dns.Copy(rr).(*dns.A); ok {
 					addrList = append(addrList, ip.A)
 				} else {
 					return nil, errors.New("A record failed to cast to *dns.A")
 				}
 			case dns.TypeAAAA:
-				if ip, ok := rr.(*dns.AAAA); ok {
+				if ip, ok := dns.Copy(rr).(*dns.AAAA); ok {
 					addrList = append(addrList, ip.AAAA)
 				} else {
 					return nil, errors.New("AAAA record failed to cast to *dns.AAAA")
@@ -121,4 +121,61 @@ func resolveSecure(hostname string) ([]net.IP, error) {
 		return nil, errors.New("no IP addresses found")
 	}
 	return addrList, nil
+}
+
+type TLSAset struct {
+	RRs  []*dns.TLSA
+	name string
+}
+
+func resolveTLSA(hostname string, port int) (*TLSAset, error) {
+	config, c, err := initDNS()
+	if err != nil {
+		return nil, err
+	}
+
+	resolver := os.Getenv(EnvKeyDNSResolver)
+	if resolver == "" {
+		resolver = config.Servers[0] + ":" + config.Port
+	} else {
+		resolver += ":53"
+	}
+
+	TLSAList := make([]*dns.TLSA, 0, 20)
+
+	m := new(dns.Msg)
+	m.SetEdns0(dns.DefaultMsgSize, true)
+
+	tlsaName := fmt.Sprintf("_%d._tcp.%s", port, dns.Fqdn(hostname))
+	m.SetQuestion(tlsaName, dns.TypeTLSA)
+
+	r, _, err := c.Exchange(m, resolver)
+	if err != nil {
+		return nil, err
+	}
+	if r.Rcode != dns.RcodeSuccess {
+		return nil, fmt.Errorf("DNS lookup non-successful: %v", r.Rcode)
+	}
+	if !r.AuthenticatedData {
+		return nil, fmt.Errorf("not AD set for results for %q/%v query", hostname, dns.Type(dns.TypeTLSA))
+	}
+
+	for _, rr := range r.Answer {
+		if rr.Header().Rrtype != dns.TypeTLSA {
+			continue
+		}
+		if tlsa, ok := dns.Copy(rr).(*dns.TLSA); ok {
+			TLSAList = append(TLSAList, tlsa)
+		} else {
+			return nil, errors.New("TLSA record failed to cast to *dns.TLSA")
+		}
+	}
+
+	if len(TLSAList) == 0 {
+		return nil, errors.New("no TLSA records found")
+	}
+	return &TLSAset{
+		RRs:  TLSAList,
+		name: tlsaName,
+	}, nil
 }
