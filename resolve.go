@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"sync"
 
 	"github.com/miekg/dns"
@@ -124,8 +125,9 @@ func resolveSecure(hostname string) ([]net.IP, error) {
 }
 
 type TLSAset struct {
-	RRs  []*dns.TLSA
-	name string
+	RRs       []*dns.TLSA
+	name      string
+	foundName string
 }
 
 func resolveTLSA(hostname string, port int) (*TLSAset, error) {
@@ -175,7 +177,18 @@ func resolveTLSA(hostname string, port int) (*TLSAset, error) {
 		return nil, errors.New("no TLSA records found")
 	}
 	return &TLSAset{
-		RRs:  TLSAList,
-		name: tlsaName,
+		RRs:       TLSAList,
+		name:      tlsaName,
+		foundName: TLSAList[0].Hdr.Name,
 	}, nil
+}
+
+// TLSAShortString provides something suitable for output without showing the
+// full contents; for our uses, we don't need the RR_Header and for
+// full-certs-in-DNS we don't _want_ to print it all.
+func TLSAShortString(rr *dns.TLSA) string {
+	return strconv.Itoa(int(rr.Usage)) +
+		" " + strconv.Itoa(int(rr.Selector)) +
+		" " + strconv.Itoa(int(rr.MatchingType)) +
+		" " + rr.Certificate[:16] + "..."
 }
