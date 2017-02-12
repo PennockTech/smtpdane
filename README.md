@@ -34,9 +34,12 @@ are multiple IP addresses, then each will be connected to, in parallel.
 
 ## Installation
 
+Go 1.8 or greater is required.  We use the
+`crypto/tls.Config.VerifyPeerCertificate` callback introduced in that release.
+
 ```console
 $ mkdir ~/go
-$ export GOPATH="$HOME/go"
+$ export GOPATH="$HOME/go"		# unnecessary from Go 1.8 onwards
 $ go get go.pennock.tech/smtpdane
 ```
 

@@ -12,6 +12,8 @@
 // code-hosting site not under our direct control.  We keep our options open,
 // for moving where we keep the code publicly available.
 
+// +build go1.8
+
 package main
 
 import (
@@ -21,23 +23,11 @@ import (
 	"sync"
 )
 
-var opts struct {
-	defaultPort    string
-	defaultPortInt int
-	tlsOnConnect   bool
-	showVersion    bool
-}
-
-type programStatus struct {
-	probing    *sync.WaitGroup
-	errorCount uint32 // only access via sync/atomic while go-routines running
-	output     chan<- string
-}
-
 func init() {
 	flag.StringVar(&opts.defaultPort, "port", "smtp(25)", "port to connect to")
 	flag.BoolVar(&opts.tlsOnConnect, "tls-on-connect", false, "start TLS immediately upon connection")
 	flag.BoolVar(&opts.showVersion, "version", false, "show version and exit")
+	flag.StringVar(&opts.heloName, "helo", "smtpdane.invalid", "name to send in HELO/EHLO")
 }
 
 func main() {
