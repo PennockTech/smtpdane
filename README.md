@@ -1,7 +1,7 @@
 smtpdane
 ========
 
-`go get go.pennock.tech/smtpdane`
+Go 1.8+ : `go get go.pennock.tech/smtpdane`
 
 This is an SMTP client which can connect to an SMTP server, issue `STARTTLS`
 and verify the certificate using DANE (TLSA records signed with DNSSEC).
@@ -21,6 +21,7 @@ with monitoring `smtps` (commonly deployed on the non-IANA-assigned port 465).
 
 The tool will connect to each SMTP server specified, in parallel.  If there
 are multiple IP addresses, then each will be connected to, in parallel.
+
 
 ### Access needed
 

@@ -10,6 +10,7 @@ import (
 	"crypto/tls"
 	"net"
 	"net/smtp"
+	"net/textproto"
 )
 
 // probeHost is the top-level function of a go-routine and is responsible for
@@ -57,17 +58,22 @@ func probeAddr(ip net.IP, hostname string, port int, status *programStatus) {
 	}
 
 	if opts.tlsOnConnect {
-		tryTLSOnConn(conn, hostname, tlsConfig, status)
+		tryTLSOnConn(conn, hostname, ip, tlsConfig, status)
 		return
 	}
 
 	s, err := smtp.NewClient(conn, hostname)
 	if err != nil {
-		status.Errorf("failed to establish SMTP client on connection: %s", err)
+		status.Errorf("[%s %v] failed to establish SMTP client on connection: %s", hostname, ip, err)
 		_ = conn.Close()
 		return
 	}
 
+	// TODO: figure out a sane timeout mechanism (which also handles pre-banner
+	// delays) or some other mechanism to handle Golang net/smtp just hanging
+	// when given a TLS-on-connect server (which is reasonable, since for TLS,
+	// client-speaks-first and the SMTP code is just waiting for the server to
+	// speak).
 	err = s.Hello(opts.heloName)
 	if err != nil {
 		status.Errorf("[%s %v] EHLO failed: %s", hostname, ip, err)
@@ -82,13 +88,44 @@ func probeAddr(ip net.IP, hostname string, port int, status *programStatus) {
 		return
 	}
 
+	status.Messagef("[%s %v] issuing STARTTLS", hostname, ip)
 	err = s.StartTLS(tlsConfig)
 	if err != nil {
-		status.Errorf("STARTTLS failed: %s", err)
+		status.Errorf("[%s %v] STARTTLS failed: %s", hostname, ip, err)
 	}
-	_ = s.Quit()
+	err = s.Quit()
+	if err != nil {
+		status.Errorf("[%s %v] QUIT failed: %s", hostname, ip, err)
+	}
 	return
 }
 
-func tryTLSOnConn(conn net.Conn, hostname string, tlsConfig *tls.Config, status *programStatus) {
+func tryTLSOnConn(conn net.Conn, hostname string, ip net.IP, tlsConfig *tls.Config, status *programStatus) {
+	status.Messagef("[%s %v] starting TLS immediately", hostname, ip)
+	c := tls.Client(conn, tlsConfig)
+	t := textproto.NewConn(c)
+
+	_, _, err := t.ReadResponse(220)
+	if err != nil {
+		t.Close()
+		status.Errorf("[%s %v] banner read failed: %s", hostname, ip, err)
+		return
+	}
+
+	id, err := t.Cmd("EHLO %s", hostname)
+	t.StartResponse(id)
+	_, _, err = t.ReadResponse(250)
+	t.EndResponse(id)
+	if err != nil {
+		status.Errorf("[%s %v] EHLO failed: %s", hostname, ip, err)
+	}
+
+	id, err = t.Cmd("QUIT")
+	t.StartResponse(id)
+	_, _, err = t.ReadResponse(221)
+	t.EndResponse(id)
+	if err != nil {
+		status.Errorf("[%s %v] QUIT failed: %s", hostname, ip, err)
+	}
+	t.Close()
 }
