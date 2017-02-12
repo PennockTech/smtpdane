@@ -1,6 +1,11 @@
 smtpdane
 ========
 
+**EARLY ALPHA SOFTWARE**
+
+**THIS HAS NOT YET BEEN TESTED TO CONFIRM IT FAILS WHEN IT SHOULD, AGAINST BAD
+CERTIFICATES OR DNS**
+
 Go 1.8+ : `go get go.pennock.tech/smtpdane`
 
 This is an SMTP client which can connect to an SMTP server, issue `STARTTLS`
@@ -14,7 +19,8 @@ Per [RFC7672][] we only support `DANE-TA(2)` and `DANE-EE(3)`;
 To avoid requiring a local DNSSEC validating DNS resolver, DNSSEC is validated
 inside the `smtpdane` tool.  To achieve this, the root zone trust anchors are
 baked into the code.  Every few years these are rotated and `smtpdane` will
-need to be updated and rebuilt.
+need to be updated and rebuilt. _\[NB: this functionality not yet implemented,
+still rely upon a validating resolver right now.\]_
 
 Optionally this client can speak TLS-on-connect instead of STARTTLS, to aid
 with monitoring `smtps` (commonly deployed on the non-IANA-assigned port 465).
