@@ -57,6 +57,9 @@ func initDNS() (*dns.ClientConfig, *dns.Client, error) {
 
 // FIXME: THIS IS NOT DOING WHAT THE NAME SAYS YET!!
 // This just resolves DNS, does not validate it.  We're still doing code scaffolding.
+// nb: we _do_ check for AD bit set, so we're working with a validating
+// resolver fine, but I want to get this working without needing a validating resolver.
+// This should be a standalone monitoring tool.
 func resolveSecure(hostname string) ([]net.IP, error) {
 	config, c, err := initDNS()
 	if err != nil {

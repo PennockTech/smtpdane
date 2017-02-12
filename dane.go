@@ -9,6 +9,7 @@ package main
 import (
 	"crypto/x509"
 	"errors"
+	"strconv"
 )
 
 func peerCertificateVerifierFor(vc validationContext) func([][]byte, [][]*x509.Certificate) error {
@@ -89,8 +90,13 @@ func (vc validationContext) chainValid(eeCert, anchorCert *x509.Certificate, caC
 		opts.Intermediates.AddCert(cert)
 	}
 	opts.Roots.AddCert(anchorCert)
-	_, err := eeCert.Verify(opts)
+	chains, err := eeCert.Verify(opts)
 	if err == nil {
+		ids := make([]string, len(chains[0]))
+		for i := range chains[0] {
+			ids[i] = strconv.QuoteToGraphic(chains[0][i].Subject.CommonName)
+		}
+		vc.Messagef("%d chains to TA; first length %d, is: %v", len(chains), len(chains[0]), ids)
 		return true
 	}
 	return false
