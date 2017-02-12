@@ -34,6 +34,15 @@ func (s *programStatus) Message(msg string) {
 	s.output <- msg
 }
 
+func (s *programStatus) Error(msg string) {
+	s.Message(msg)
+	s.AddErr()
+}
+
+func (s *programStatus) Errorf(spec string, args ...interface{}) {
+	s.Error(fmt.Sprintf(spec, args...))
+}
+
 func (s *programStatus) AddErr() {
 	_ = atomic.AddUint32(&s.errorCount, 1)
 }

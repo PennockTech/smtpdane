@@ -64,3 +64,20 @@ func PortParse(spec string) (int, error) {
 
 	return 0, fmt.Errorf("%s and %s", nameErr, err)
 }
+
+func HostnamePortFrom(spec string) (string, int, error) {
+	h, p, err := net.SplitHostPort(spec)
+	if err == nil {
+		p2, err := PortParse(p)
+		return h, p2, err
+	}
+
+	if _, ok := err.(*net.AddrError); ok {
+		// either too many colons or missing port; assume missing port, let
+		// error out later, since there's no way to tell without string
+		// matching.
+		return spec, opts.defaultPortInt, nil
+	}
+
+	return "", 0, err
+}
