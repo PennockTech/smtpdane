@@ -46,13 +46,14 @@ Go 1.8 or greater is required.  We use the
 
 ```console
 $ mkdir ~/go
-$ export GOPATH="$HOME/go"		# unnecessary from Go 1.8 onwards
 $ go get go.pennock.tech/smtpdane
 ```
 
 With those install steps, the binary can be found in `~/go/bin/smtpdane`.
 The `go get` command will fetch this repo, any dependent repos and perform the
-build.
+build.  This assumes that `$GOPATH` and other Golang-controlling environment
+variables have not been set; as of Go 1.8, `~/go` is the default solitary
+entry in the `$GOPATH` list.
 
 To build as a static binary for deployment into a lib-less environment:
 
