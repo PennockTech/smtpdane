@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"sync"
 
+	"go.pennock.tech/smtpdane/internal/errorlist"
+
 	"github.com/miekg/dns"
 )
 
@@ -74,11 +76,13 @@ func resolveSecure(hostname string) ([]net.IP, error) {
 	}
 
 	addrList := make([]net.IP, 0, 20)
+	errList := errorlist.New()
 
 	m := new(dns.Msg)
 	m.SetEdns0(dns.DefaultMsgSize, true)
 
 	// why is this uint16 ipv dns.Type ?  Infelicity stuck in API?
+	//DNS_RRTYPE_LOOP:
 	for _, typ := range []uint16{dns.TypeAAAA, dns.TypeA} {
 		// We will qualify if needed; if someone invokes with "foo" as a hostname,
 		// look it up and expect the original "foo" in the certificate.
@@ -87,18 +91,21 @@ func resolveSecure(hostname string) ([]net.IP, error) {
 		// TODO: iterate DNS servers, add retries
 		r, _, err := c.Exchange(m, resolver)
 		if err != nil {
-			// TODO: if server fails on AAAA and we have A, we should probably return the A stuff but warn on the failure
-			return nil, err
+			errList.Add(err)
+			continue
 		}
 		if r.Rcode != dns.RcodeSuccess {
-			return nil, fmt.Errorf("DNS lookup non-successful: %v", r.Rcode)
+			errList.Add(fmt.Errorf("DNS lookup non-successful: %v", r.Rcode))
+			continue
 		}
-
-		// if not authentic, unlikely to be for a second type
+		// Here we depend upon AD bit and so are still secure, assuming secure
+		// link to trusted resolver.
 		if !r.AuthenticatedData {
-			return nil, fmt.Errorf("not AD set for results for %q/%v query", hostname, dns.Type(typ))
+			errList.Add(fmt.Errorf("not AD set for results for %q/%v query", hostname, dns.Type(typ)))
+			continue
 		}
 
+	DNS_ANSWER_RR_LOOP:
 		for _, rr := range r.Answer {
 			// TODO: CNAME?
 			if rr.Header().Rrtype != typ {
@@ -109,22 +116,28 @@ func resolveSecure(hostname string) ([]net.IP, error) {
 				if ip, ok := dns.Copy(rr).(*dns.A); ok {
 					addrList = append(addrList, ip.A)
 				} else {
-					return nil, errors.New("A record failed to cast to *dns.A")
+					errList.Add(fmt.Errorf("A record failed to cast to *dns.A [%q/%v]", hostname, dns.Type(typ)))
+					// If this happens and we iterate DNS_ANSWER_RR_LOOP instead of DNS_RRTYPE_LOOP then we'll probably get a lot
+					// of errors because each fails, as it's _likely_ a programming bug rather than a packet well-formedness
+					// issue; for now, accept that, let's see what happens if this is ever tickled.
+					continue DNS_ANSWER_RR_LOOP
 				}
 			case dns.TypeAAAA:
 				if ip, ok := dns.Copy(rr).(*dns.AAAA); ok {
 					addrList = append(addrList, ip.AAAA)
 				} else {
-					return nil, errors.New("AAAA record failed to cast to *dns.AAAA")
+					errList.Add(fmt.Errorf("AAAA record failed to cast to *dns.AAAA [%q/%v]", hostname, dns.Type(typ)))
+					continue DNS_ANSWER_RR_LOOP
 				}
 			}
 		}
 	}
 
 	if len(addrList) == 0 {
-		return nil, errors.New("no IP addresses found")
+		errList.Add(errors.New("no IP addresses found"))
+		return nil, errList
 	}
-	return addrList, nil
+	return addrList, errList.Maybe()
 }
 
 type TLSAset struct {
