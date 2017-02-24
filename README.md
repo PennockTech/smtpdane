@@ -81,6 +81,9 @@ The port can be included with the host in the usual `:1234` suffix notation;
 if the host is an IPv6 address, either do not include a port or use the
 otherwise-optional square-brackets, thus `[2001:db8::25]:1234`.
 
+By default, the `EHLO` command will supply a hostname of `smtpdane.invalid`;
+use the `-helo` flag to override that value.
+
 
 [RFC7672]: https://tools.ietf.org/html/rfc7672
            "SMTP Security via Opportunistic DNS-Based Authentication of Named Entities (DANE) Transport Layer Security (TLS)"
