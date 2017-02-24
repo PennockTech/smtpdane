@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"strconv"
 	"sync"
 
@@ -57,6 +58,24 @@ func initDNS() (*dns.ClientConfig, *dns.Client, error) {
 	return dnsSettings.conf, dnsSettings.client, nil
 }
 
+func resolversFromList(input []string, defDNSPort string) []string {
+	r := make([]string, len(input))
+	for i := range input {
+		r[i] = HostPortWithDefaultPort(input[i], defDNSPort)
+	}
+	return r
+}
+
+var resolverSplitRE *regexp.Regexp
+
+func init() {
+	resolverSplitRE = regexp.MustCompile(`[,\s]+`)
+}
+
+func resolversFromString(input string) []string {
+	return resolversFromList(resolverSplitRE.Split(input, -1), "53")
+}
+
 // FIXME: THIS IS NOT DOING WHAT THE NAME SAYS YET!!
 // This just resolves DNS, does not validate it.  We're still doing code scaffolding.
 // nb: we _do_ check for AD bit set, so we're working with a validating
@@ -68,11 +87,11 @@ func resolveSecure(hostname string) ([]net.IP, error) {
 		return nil, err
 	}
 
-	resolver := os.Getenv(EnvKeyDNSResolver)
-	if resolver == "" {
-		resolver = config.Servers[0] + ":" + config.Port
+	var resolvers []string
+	if r := os.Getenv(EnvKeyDNSResolver); r != "" {
+		resolvers = resolversFromString(r)
 	} else {
-		resolver += ":53"
+		resolvers = resolversFromList(config.Servers, config.Port)
 	}
 
 	addrList := make([]net.IP, 0, 20)
@@ -82,27 +101,43 @@ func resolveSecure(hostname string) ([]net.IP, error) {
 	m.SetEdns0(dns.DefaultMsgSize, true)
 
 	// why is this uint16 ipv dns.Type ?  Infelicity stuck in API?
-	//DNS_RRTYPE_LOOP:
+DNS_RRTYPE_LOOP:
 	for _, typ := range []uint16{dns.TypeAAAA, dns.TypeA} {
 		// We will qualify if needed; if someone invokes with "foo" as a hostname,
 		// look it up and expect the original "foo" in the certificate.
 		m.SetQuestion(dns.Fqdn(hostname), typ)
 
-		// TODO: iterate DNS servers, add retries
-		r, _, err := c.Exchange(m, resolver)
-		if err != nil {
-			errList.Add(err)
-			continue
+		var (
+			r   *dns.Msg
+			err error
+		)
+
+		for _, resolver := range resolvers {
+			// TODO: add retries
+			r, _, err = c.Exchange(m, resolver)
+			if err != nil {
+				errList.Add(err)
+				r = nil
+				continue
+			}
+			if r.Rcode != dns.RcodeSuccess {
+				errList.AddErrorf("DNS lookup non-successful [resolver %v]: %v", resolver, r.Rcode)
+				r = nil
+				continue
+			}
+			// Here we depend upon AD bit and so are still secure, assuming secure
+			// link to trusted resolver.
+			if !r.AuthenticatedData {
+				errList.AddErrorf("not AD set for results from %v for %q/%v query", resolver, hostname, dns.Type(typ))
+				r = nil
+				continue
+			}
 		}
-		if r.Rcode != dns.RcodeSuccess {
-			errList.Add(fmt.Errorf("DNS lookup non-successful: %v", r.Rcode))
-			continue
-		}
-		// Here we depend upon AD bit and so are still secure, assuming secure
-		// link to trusted resolver.
-		if !r.AuthenticatedData {
-			errList.Add(fmt.Errorf("not AD set for results for %q/%v query", hostname, dns.Type(typ)))
-			continue
+
+		if r == nil {
+			errList.AddErrorf("[%q/%v]: all DNS resolver queries failed, unable to get authentic result", hostname, dns.Type(typ))
+			// seems likely might be SERVFAIL from broken auth servers for AAAA records
+			continue DNS_RRTYPE_LOOP
 		}
 
 	DNS_ANSWER_RR_LOOP:
@@ -116,7 +151,7 @@ func resolveSecure(hostname string) ([]net.IP, error) {
 				if ip, ok := dns.Copy(rr).(*dns.A); ok {
 					addrList = append(addrList, ip.A)
 				} else {
-					errList.Add(fmt.Errorf("A record failed to cast to *dns.A [%q/%v]", hostname, dns.Type(typ)))
+					errList.AddErrorf("A record failed to cast to *dns.A [%q/%v]", hostname, dns.Type(typ))
 					// If this happens and we iterate DNS_ANSWER_RR_LOOP instead of DNS_RRTYPE_LOOP then we'll probably get a lot
 					// of errors because each fails, as it's _likely_ a programming bug rather than a packet well-formedness
 					// issue; for now, accept that, let's see what happens if this is ever tickled.
@@ -126,7 +161,7 @@ func resolveSecure(hostname string) ([]net.IP, error) {
 				if ip, ok := dns.Copy(rr).(*dns.AAAA); ok {
 					addrList = append(addrList, ip.AAAA)
 				} else {
-					errList.Add(fmt.Errorf("AAAA record failed to cast to *dns.AAAA [%q/%v]", hostname, dns.Type(typ)))
+					errList.AddErrorf("AAAA record failed to cast to *dns.AAAA [%q/%v]", hostname, dns.Type(typ))
 					continue DNS_ANSWER_RR_LOOP
 				}
 			}

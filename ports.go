@@ -81,3 +81,15 @@ func HostnamePortFrom(spec string) (string, int, error) {
 
 	return "", 0, err
 }
+
+func HostPortWithDefaultPort(spec string, defaultPort string) string {
+	_, _, err := net.SplitHostPort(spec)
+	if err == nil {
+		return spec
+	}
+
+	// Similarly, there might be other errors than missing port here; figure
+	// out if we want to handle those, or let error occur later.
+
+	return net.JoinHostPort(spec, defaultPort)
+}

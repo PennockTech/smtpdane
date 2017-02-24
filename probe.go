@@ -13,6 +13,8 @@ import (
 	"net/smtp"
 	"net/textproto"
 	"time"
+
+	"go.pennock.tech/smtpdane/internal/errorlist"
 )
 
 type validationContext struct {
@@ -50,7 +52,12 @@ func probeHost(hostSpec string, status *programStatus) {
 
 	ipList, err := resolveSecure(hostname)
 	if err != nil {
-		status.Errorf("error resolving %q: %s", hostname, err)
+		switch e := err.(type) {
+		case *errorlist.List:
+			status.Errorf("error resolving %q:\n%s", hostname, e.FmtIndented())
+		default:
+			status.Errorf("error resolving %q: %s", hostname, err)
+		}
 		return
 	}
 

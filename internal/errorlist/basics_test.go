@@ -47,4 +47,13 @@ func TestBasics(t *testing.T) {
 	T.Equal(el.FmtEach("<%v>", "+"), "<phil was here>+<over here too>", "custom-formatting, list")
 	T.Equal(el.Error(), "[(phil was here), (over here too)]", "basic error-repr of plural list is sequence of reprs")
 	T.ExpectError(el.Maybe(), "should have been an error")
+
+	el = errorlist.New()
+	T.NotEqual(el, nil, "got nil return from errors.New")
+	T.Equal(el.HasErrors(), false, "initial error-list has errors")
+	el.AddErrorf("foo %v", 3)
+	T.ExpectErrorMessage(el.Maybe(), "foo 3", "should have been an error \"foo 3\"")
+	el = errorlist.New()
+	el.AddErrorf("bar")
+	T.ExpectErrorMessage(el.Maybe(), "bar", "should have been an error \"bar\"")
 }

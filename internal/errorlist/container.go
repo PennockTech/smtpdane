@@ -26,6 +26,11 @@ func (l *List) Add(e error) {
 	*l = append(*l, e)
 }
 
+// AddErrorf is a convenience wrapper for Add(fmt.Errorf(...))
+func (l *List) AddErrorf(spec string, args ...interface{}) {
+	l.Add(fmt.Errorf(spec, args...))
+}
+
 // Len reports how many errors are in a container
 func (l *List) Len() int {
 	if l == nil || *l == nil {
