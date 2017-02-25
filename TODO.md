@@ -2,6 +2,7 @@
 
 * DNSSEC validation in-tool
 * pubkey anchors, not just cert anchors
+* Timeouts on connect
 
 ### Other features
 
