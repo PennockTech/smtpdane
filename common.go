@@ -17,6 +17,7 @@ var opts struct {
 	mxLookup         bool
 	submissionLookup bool
 	srvTCPLookup     string
+	noColor          bool
 }
 
 type programStatus struct {

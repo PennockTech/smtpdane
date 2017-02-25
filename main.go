@@ -28,6 +28,7 @@ func init() {
 	flag.BoolVar(&opts.tlsOnConnect, "tls-on-connect", false, "start TLS immediately upon connection")
 	flag.BoolVar(&opts.showVersion, "version", false, "show version and exit")
 	flag.StringVar(&opts.heloName, "helo", "smtpdane.invalid", "name to send in HELO/EHLO")
+	flag.BoolVar(&opts.noColor, "nocolor", false, "inhibit color output")
 
 	flag.BoolVar(&opts.mxLookup, "mx", false, "arguments are domains, lookup MX records")
 	flag.BoolVar(&opts.submissionLookup, "submission", false, "arguments are domains, lookup submission SRV records")

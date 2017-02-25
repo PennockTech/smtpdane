@@ -32,8 +32,12 @@ func (vc validationContext) Messagef(spec string, params ...interface{}) {
 }
 
 func (vc validationContext) Errorf(spec string, params ...interface{}) {
-	vc.Messagef(spec, params...)
+	vc.Messagef(ColorRed(spec), params...)
 	vc.status.AddErr()
+}
+
+func (vc validationContext) Successf(spec string, params ...interface{}) {
+	vc.Messagef(ColorGreen(spec), params...)
 }
 
 // probeHost is the top-level function of a go-routine and is responsible for

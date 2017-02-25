@@ -35,7 +35,7 @@ func (s *programStatus) Message(msg string) {
 }
 
 func (s *programStatus) Error(msg string) {
-	s.Message(msg)
+	s.Message(ColorRed(msg))
 	s.AddErr()
 }
 
@@ -45,4 +45,12 @@ func (s *programStatus) Errorf(spec string, args ...interface{}) {
 
 func (s *programStatus) AddErr() {
 	_ = atomic.AddUint32(&s.errorCount, 1)
+}
+
+func (s *programStatus) Successf(spec string, args ...interface{}) {
+	s.Success(fmt.Sprintf(spec, args...))
+}
+
+func (s *programStatus) Success(msg string) {
+	s.output <- ColorGreen(msg)
 }

@@ -60,7 +60,7 @@ func peerCertificateVerifier(
 				err := tlsa.Verify(cert)
 				if err == nil {
 					if vc.chainValid(eeCert, cert, caCerts, i) {
-						vc.Messagef("TLSA DANE-TA(2) match against chain position %d: %s", i+2, TLSAShortString(tlsa))
+						vc.Successf("TLSA DANE-TA(2) match against chain position %d: %s", i+2, TLSAShortString(tlsa))
 						seenMatch = true
 						// if a self-signed cert appears multiple times, report that; don't abort
 					} else {
