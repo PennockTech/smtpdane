@@ -82,6 +82,23 @@ func HostnamePortFrom(spec string) (string, int, error) {
 	return "", 0, err
 }
 
+func HostnameMaybePortFrom(spec string) (string, string, error) {
+	h, p, err := net.SplitHostPort(spec)
+	if err == nil {
+		p2, err := PortParse(p)
+		return h, strconv.Itoa(p2), err
+	}
+
+	if _, ok := err.(*net.AddrError); ok {
+		// either too many colons or missing port; assume missing port, let
+		// error out later, since there's no way to tell without string
+		// matching.
+		return spec, "", nil
+	}
+
+	return "", "", err
+}
+
 func HostPortWithDefaultPort(spec string, defaultPort string) string {
 	_, _, err := net.SplitHostPort(spec)
 	if err == nil {

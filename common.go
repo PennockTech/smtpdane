@@ -9,11 +9,14 @@ import (
 )
 
 var opts struct {
-	defaultPort    string
-	defaultPortInt int
-	tlsOnConnect   bool
-	showVersion    bool
-	heloName       string
+	defaultPort      string
+	defaultPortInt   int
+	tlsOnConnect     bool
+	showVersion      bool
+	heloName         string
+	mxLookup         bool
+	submissionLookup bool
+	srvTCPLookup     string
 }
 
 type programStatus struct {

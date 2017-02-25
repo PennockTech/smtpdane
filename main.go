@@ -28,6 +28,26 @@ func init() {
 	flag.BoolVar(&opts.tlsOnConnect, "tls-on-connect", false, "start TLS immediately upon connection")
 	flag.BoolVar(&opts.showVersion, "version", false, "show version and exit")
 	flag.StringVar(&opts.heloName, "helo", "smtpdane.invalid", "name to send in HELO/EHLO")
+
+	flag.BoolVar(&opts.mxLookup, "mx", false, "arguments are domains, lookup MX records")
+	flag.BoolVar(&opts.submissionLookup, "submission", false, "arguments are domains, lookup submission SRV records")
+	flag.StringVar(&opts.srvTCPLookup, "srv", "", "arguments are domains, lookup this TCP SRV record")
+}
+
+func checkFlagsForConflicting() bool {
+	if opts.mxLookup && opts.submissionLookup {
+		fmt.Fprintf(os.Stderr, "%s: -mx and -submission conflict\n", os.Args[0])
+		return true
+	}
+	if opts.mxLookup && opts.srvTCPLookup != "" {
+		fmt.Fprintf(os.Stderr, "%s: -mx and -srv SRV conflict\n", os.Args[0])
+		return true
+	}
+	if opts.submissionLookup && opts.srvTCPLookup != "" {
+		fmt.Fprintf(os.Stderr, "%s: -submission and -srv SRV conflict\n", os.Args[0])
+		return true
+	}
+	return false
 }
 
 func main() {
@@ -35,6 +55,9 @@ func main() {
 	if opts.showVersion {
 		version()
 		return
+	}
+	if checkFlagsForConflicting() {
+		os.Exit(1)
 	}
 
 	hostlist := flag.Args()
@@ -61,7 +84,15 @@ func main() {
 
 	for _, hostSpec := range hostlist {
 		status.probing.Add(1)
-		go probeHost(hostSpec, status)
+		if opts.mxLookup {
+			go probeMX(hostSpec, status)
+		} else if opts.submissionLookup {
+			go probeSRV("submission", hostSpec, status)
+		} else if opts.srvTCPLookup != "" {
+			go probeSRV(opts.srvTCPLookup, hostSpec, status)
+		} else {
+			go probeHost(hostSpec, status)
+		}
 	}
 
 	status.probing.Wait()

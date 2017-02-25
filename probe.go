@@ -20,6 +20,7 @@ import (
 type validationContext struct {
 	tlsaSet  *TLSAset
 	hostname string
+	altNames []string
 	ip       net.IP
 	port     int
 	status   *programStatus
@@ -41,7 +42,7 @@ func (vc validationContext) Errorf(spec string, params ...interface{}) {
 // Messages should be reported via the Output function of the status; newlines
 // are appended and each string is guaranteed to be emitted with no
 // interweaving of other results within the string.
-func probeHost(hostSpec string, status *programStatus) {
+func probeHost(hostSpec string, status *programStatus, otherValidNames ...string) {
 	defer status.probing.Done()
 
 	hostname, port, err := HostnamePortFrom(hostSpec)
@@ -84,6 +85,7 @@ func probeHost(hostSpec string, status *programStatus) {
 		go validationContext{
 			tlsaSet:  tlsaSet,
 			hostname: hostname,
+			altNames: otherValidNames,
 			ip:       ip,
 			port:     port,
 			status:   status,

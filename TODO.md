@@ -1,9 +1,7 @@
 ### Validation features
 
 * DNSSEC validation in-tool
-* -mx mode, to look up MX records and use as alternative verified hostname
 * -aka flag, for one or more "okay if it's this" hostnames
-* -srv mode, to look up SRV records; 587 & 465 benefit from this
 * pubkey anchors, not just cert anchors
 
 ### Other features

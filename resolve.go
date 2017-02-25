@@ -170,6 +170,9 @@ DNS_RRTYPE_LOOP:
 	return resultList, errList.Maybe()
 }
 
+// There's a lot of repetition/boilerplate in the below.
+// If we expand beyond where we are at now, then we really should consider reflection; more complexity, less repetition.
+
 func cbRRTypeAddr(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
 	switch typ {
 	case dns.TypeA:
@@ -215,7 +218,7 @@ func cbRRTypeTLSA(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
 			return nil, fmt.Errorf("TLSA record failed to cast to *dns.TLSA [%q/%v]", rrname, dns.Type(typ))
 		}
 	}
-	return nil, fmt.Errorf("BUG: cbRRTypeAddr(%v,..,%q) called, expected TLSA", dns.Type(typ), rrname)
+	return nil, fmt.Errorf("BUG: cbRRTypeTLSA(%v,..,%q) called, expected TLSA", dns.Type(typ), rrname)
 }
 
 func ResolveTLSA(hostname string, port int) (*TLSAset, error) {
@@ -245,4 +248,54 @@ func TLSAShortString(rr *dns.TLSA) string {
 		" " + strconv.Itoa(int(rr.Selector)) +
 		" " + strconv.Itoa(int(rr.MatchingType)) +
 		" " + rr.Certificate[:16] + "..."
+}
+
+func cbRRTypeMX(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
+	switch typ {
+	case dns.TypeMX:
+		if mx, ok := rr.(*dns.MX); ok {
+			return mx.Mx, nil
+		} else {
+			return nil, fmt.Errorf("MX record failed to cast to *dns.MX [%q/%v]", rrname, dns.Type(typ))
+		}
+	}
+	return nil, fmt.Errorf("BUG: cbRRTypeMX(%v,..,%q) called, expected MX", dns.Type(typ), rrname)
+}
+
+// ResolveMX only returns the hostnames, we don't care about the Preference
+func ResolveMX(hostname string) ([]string, error) {
+	rl, e := resolveRRSecure(cbRRTypeMX, dns.Fqdn(hostname), dns.TypeMX)
+	if e != nil {
+		return nil, e
+	}
+	hostnameList := make([]string, len(rl))
+	for i := range rl {
+		hostnameList[i] = rl[i].(string)
+	}
+	return hostnameList, nil
+}
+
+func cbRRTypeSRV(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
+	switch typ {
+	case dns.TypeSRV:
+		if srv, ok := rr.(*dns.SRV); ok {
+			return srv, nil
+		} else {
+			return nil, fmt.Errorf("SRV record failed to cast to *dns.SRV [%q/%v]", rrname, dns.Type(typ))
+		}
+	}
+	return nil, fmt.Errorf("BUG: cbRRTypeSRV(%v,..,%q) called, expected SRV", dns.Type(typ), rrname)
+}
+
+// ResolveSRV returns MX records, we need at least the Port, not just the Target
+func ResolveSRV(lookup string) ([]*dns.SRV, error) {
+	rl, e := resolveRRSecure(cbRRTypeSRV, lookup, dns.TypeSRV)
+	if e != nil {
+		return nil, e
+	}
+	srvList := make([]*dns.SRV, len(rl))
+	for i := range rl {
+		srvList[i] = rl[i].(*dns.SRV)
+	}
+	return srvList, nil
 }
