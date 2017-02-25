@@ -28,6 +28,9 @@ with monitoring `smtps` (commonly deployed on the non-IANA-assigned port 465).
 The tool will connect to each SMTP server specified, in parallel.  If there
 are multiple IP addresses, then each will be connected to, in parallel.
 
+Flags may be used to request looking up MX records or SRV records for a
+domain.
+
 
 ### Access needed
 
@@ -74,7 +77,11 @@ The host to connect to is provided as a list of one or more hosts after any
 options.
 
 Use `-port` to specify a different port to speak on, for each host which
-doesn't specify a specific port.  
+doesn't specify a specific port.
+Note that `-port` specifies a default; if looking up SRV records, ports from
+SRV override the `-port` option.  However, port overrides on the host override
+SRV.
+
 Use `-tls-on-connect` to immediately start TLS instead of negotiating.
 
 The port can be included with the host in the usual `:1234` suffix notation;
@@ -84,6 +91,29 @@ otherwise-optional square-brackets, thus `[2001:db8::25]:1234`.
 By default, the `EHLO` command will supply a hostname of `smtpdane.invalid`;
 use the `-helo` flag to override that value.
 
+### Examples
+
+```sh
+# Regular lookup of a host; check every address-record:
+smtpdane mx1.example.org
+
+# Regular lookup of a domain; check every MX, every address:
+smtpdane -mx example.org
+
+# Regular lookup of SMTP Submission for a domain:
+smtpdane -submission example.org
+
+# Connect to port 26 for a server:
+smtpdane -port 26 mx1.example.org
+
+# Check TLS-on-connect for a server:
+smtpdane -port 465 -tls-on-connect smtp.example.org
+
+# Connect to the "usual" de-facto standard TLS-on-connect SMTPS port,
+# on each host which is a submission host for the domain,
+# and speak TLS-on-connect:
+smtpdane -tls-on-connect -submission example.org:465
+```
 
 [RFC7672]: https://tools.ietf.org/html/rfc7672
            "SMTP Security via Opportunistic DNS-Based Authentication of Named Entities (DANE) Transport Layer Security (TLS)"
