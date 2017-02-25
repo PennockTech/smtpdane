@@ -2,6 +2,10 @@
 
 * DNSSEC validation in-tool
 * pubkey anchors, not just cert anchors
+  + A `2 1 0` anchor, `DANE-TA SPKI Full`
+  + Anchor does _not_ appear in the chain; for each constructed chain, test if
+    the top is signed by the anchor from DNS
+  + Same probably applies to `2 0 0`.
 * Timeouts on connect
 
 ### Other features
