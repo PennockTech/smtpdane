@@ -51,7 +51,7 @@ func peerCertificateVerifier(
 		case 3: // DANE-EE per RFC7218
 			err := tlsa.Verify(eeCert)
 			if err == nil {
-				vc.Messagef("TLSA DANE-EE(3) match: %s", TLSAShortString(tlsa))
+				vc.Successf("TLSA DANE-EE(3) match: %s", TLSAShortString(tlsa))
 				seenMatch = true
 			}
 
