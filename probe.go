@@ -65,7 +65,12 @@ func probeHost(hostSpec string, status *programStatus) {
 
 	tlsaSet, err := ResolveTLSA(hostname, port)
 	if err != nil {
-		status.Errorf("error resolving TLSA for %q port %d: %v", hostname, port, err)
+		switch e := err.(type) {
+		case *errorlist.List:
+			status.Errorf("error resolving TLSA for %q port %d:\n%s", hostname, port, e.FmtIndented())
+		default:
+			status.Errorf("error resolving TLSA for %q port %d: %v", hostname, port, err)
+		}
 		return
 	}
 	if tlsaSet.name == tlsaSet.foundName {

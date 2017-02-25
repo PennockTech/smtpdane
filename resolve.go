@@ -126,7 +126,11 @@ DNS_RRTYPE_LOOP:
 				continue
 			}
 			if r.Rcode != dns.RcodeSuccess {
-				errList.AddErrorf("DNS lookup non-successful [resolver %v]: %v", resolver, r.Rcode)
+				failure, known := dns.RcodeToString[r.Rcode]
+				if !known {
+					failure = fmt.Sprintf("Rcode<%d> (unknown)", r.Rcode)
+				}
+				errList.AddErrorf("DNS lookup non-successful [resolver %v]: %v", resolver, failure)
 				r = nil
 				continue
 			}
