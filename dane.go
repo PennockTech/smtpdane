@@ -82,7 +82,6 @@ func (vc validationContext) chainValid(eeCert, anchorCert *x509.Certificate, caC
 	opts := x509.VerifyOptions{
 		Roots:         x509.NewCertPool(),
 		CurrentTime:   vc.time,
-		DNSName:       vc.hostname,
 		Intermediates: x509.NewCertPool(),
 	}
 
@@ -90,14 +89,30 @@ func (vc validationContext) chainValid(eeCert, anchorCert *x509.Certificate, caC
 		opts.Intermediates.AddCert(cert)
 	}
 	opts.Roots.AddCert(anchorCert)
-	chains, err := eeCert.Verify(opts)
-	if err == nil {
+
+	candidateNames := make([]string, 1+len(vc.altNames))
+	candidateNames[0] = vc.hostname
+	for i := range vc.altNames {
+		candidateNames[i+1] = vc.altNames[i]
+	}
+
+	returnStatus := false
+
+	for _, tryHostname := range candidateNames {
+		opts.DNSName = tryHostname
+		chains, err := eeCert.Verify(opts)
+		if err != nil {
+			vc.Messagef("no valid TA chains for hostname %q", tryHostname)
+			continue
+		}
+
 		ids := make([]string, len(chains[0]))
 		for i := range chains[0] {
 			ids[i] = strconv.QuoteToGraphic(chains[0][i].Subject.CommonName)
 		}
 		vc.Messagef("%d chains to TA; first length %d, is: %v", len(chains), len(chains[0]), ids)
-		return true
+		returnStatus = true
 	}
-	return false
+
+	return returnStatus
 }
