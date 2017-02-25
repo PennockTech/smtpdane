@@ -50,7 +50,7 @@ func probeHost(hostSpec string, status *programStatus) {
 		return
 	}
 
-	ipList, err := resolveSecure(hostname)
+	ipList, err := ResolveAddrSecure(hostname)
 	if err != nil {
 		switch e := err.(type) {
 		case *errorlist.List:
@@ -63,7 +63,7 @@ func probeHost(hostSpec string, status *programStatus) {
 
 	status.Messagef("found %d addresses for %q: %v", len(ipList), hostname, ipList)
 
-	tlsaSet, err := resolveTLSA(hostname, port)
+	tlsaSet, err := ResolveTLSA(hostname, port)
 	if err != nil {
 		status.Errorf("error resolving TLSA for %q port %d: %v", hostname, port, err)
 		return

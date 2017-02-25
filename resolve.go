@@ -76,12 +76,19 @@ func resolversFromString(input string) []string {
 	return resolversFromList(resolverSplitRE.Split(input, -1), "53")
 }
 
-// FIXME: THIS IS NOT DOING WHAT THE NAME SAYS YET!!
-// This just resolves DNS, does not validate it.  We're still doing code scaffolding.
-// nb: we _do_ check for AD bit set, so we're working with a validating
-// resolver fine, but I want to get this working without needing a validating resolver.
+// FIXME: This is not doing DNS validation locally.
+// It's resolving DNS, delegating trust in validation to the resolver by
+// trusting the AD bit.
+// I want to get this working without needing a validating resolver.
 // This should be a standalone monitoring tool.
-func resolveSecure(hostname string) ([]net.IP, error) {
+func resolveRRSecure(
+	// the cbfunc is called the the confirmed RR type and the rr and the rrname;
+	// it should return an item to be added to the resolveRRSecure return list,
+	// and an error; non-nil error inhibits appending to the list.
+	cbfunc func(typ uint16, rr dns.RR, rrname string) (interface{}, error),
+	rrname string,
+	typlist ...uint16,
+) ([]interface{}, error) {
 	config, c, err := initDNS()
 	if err != nil {
 		return nil, err
@@ -94,7 +101,7 @@ func resolveSecure(hostname string) ([]net.IP, error) {
 		resolvers = resolversFromList(config.Servers, config.Port)
 	}
 
-	addrList := make([]net.IP, 0, 20)
+	resultList := make([]interface{}, 0, 20)
 	errList := errorlist.New()
 
 	m := new(dns.Msg)
@@ -102,10 +109,8 @@ func resolveSecure(hostname string) ([]net.IP, error) {
 
 	// why is this uint16 ipv dns.Type ?  Infelicity stuck in API?
 DNS_RRTYPE_LOOP:
-	for _, typ := range []uint16{dns.TypeAAAA, dns.TypeA} {
-		// We will qualify if needed; if someone invokes with "foo" as a hostname,
-		// look it up and expect the original "foo" in the certificate.
-		m.SetQuestion(dns.Fqdn(hostname), typ)
+	for _, typ := range typlist {
+		m.SetQuestion(rrname, typ)
 
 		var (
 			r   *dns.Msg
@@ -128,51 +133,67 @@ DNS_RRTYPE_LOOP:
 			// Here we depend upon AD bit and so are still secure, assuming secure
 			// link to trusted resolver.
 			if !r.AuthenticatedData {
-				errList.AddErrorf("not AD set for results from %v for %q/%v query", resolver, hostname, dns.Type(typ))
+				errList.AddErrorf("not AD set for results from %v for %q/%v query", resolver, rrname, dns.Type(typ))
 				r = nil
 				continue
 			}
 		}
 
 		if r == nil {
-			errList.AddErrorf("[%q/%v]: all DNS resolver queries failed, unable to get authentic result", hostname, dns.Type(typ))
+			errList.AddErrorf("[%q/%v]: all DNS resolver queries failed, unable to get authentic result", rrname, dns.Type(typ))
 			// seems likely might be SERVFAIL from broken auth servers for AAAA records
 			continue DNS_RRTYPE_LOOP
 		}
 
-	DNS_ANSWER_RR_LOOP:
 		for _, rr := range r.Answer {
 			// TODO: CNAME?
 			if rr.Header().Rrtype != typ {
 				continue
 			}
-			switch typ {
-			case dns.TypeA:
-				if ip, ok := dns.Copy(rr).(*dns.A); ok {
-					addrList = append(addrList, ip.A)
-				} else {
-					errList.AddErrorf("A record failed to cast to *dns.A [%q/%v]", hostname, dns.Type(typ))
-					// If this happens and we iterate DNS_ANSWER_RR_LOOP instead of DNS_RRTYPE_LOOP then we'll probably get a lot
-					// of errors because each fails, as it's _likely_ a programming bug rather than a packet well-formedness
-					// issue; for now, accept that, let's see what happens if this is ever tickled.
-					continue DNS_ANSWER_RR_LOOP
-				}
-			case dns.TypeAAAA:
-				if ip, ok := dns.Copy(rr).(*dns.AAAA); ok {
-					addrList = append(addrList, ip.AAAA)
-				} else {
-					errList.AddErrorf("AAAA record failed to cast to *dns.AAAA [%q/%v]", hostname, dns.Type(typ))
-					continue DNS_ANSWER_RR_LOOP
-				}
+			x, err := cbfunc(typ, dns.Copy(rr), rrname)
+			if err != nil {
+				errList.Add(err)
+			} else {
+				resultList = append(resultList, x)
 			}
 		}
 	}
 
-	if len(addrList) == 0 {
-		errList.Add(errors.New("no IP addresses found"))
+	if len(resultList) == 0 {
+		errList.Add(errors.New("no results found"))
 		return nil, errList
 	}
-	return addrList, errList.Maybe()
+	return resultList, errList.Maybe()
+}
+
+func cbRRTypeAddr(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
+	switch typ {
+	case dns.TypeA:
+		if ip, ok := rr.(*dns.A); ok {
+			return ip.A, nil
+		} else {
+			return nil, fmt.Errorf("A record failed to cast to *dns.A [%q/%v]", rrname, dns.Type(typ))
+		}
+	case dns.TypeAAAA:
+		if ip, ok := rr.(*dns.AAAA); ok {
+			return ip.AAAA, nil
+		} else {
+			return nil, fmt.Errorf("AAAA record failed to cast to *dns.AAAA [%q/%v]", rrname, dns.Type(typ))
+		}
+	}
+	return nil, fmt.Errorf("BUG: cbRRTypeAddr(%v,..,%q) called, expected A/AAAA", dns.Type(typ), rrname)
+}
+
+func ResolveAddrSecure(hostname string) ([]net.IP, error) {
+	rl, e := resolveRRSecure(cbRRTypeAddr, dns.Fqdn(hostname), dns.TypeAAAA, dns.TypeA)
+	if e != nil {
+		return nil, e
+	}
+	addrList := make([]net.IP, len(rl))
+	for i := range rl {
+		addrList[i] = rl[i].(net.IP)
+	}
+	return addrList, nil
 }
 
 type TLSAset struct {
@@ -181,52 +202,30 @@ type TLSAset struct {
 	foundName string
 }
 
-func resolveTLSA(hostname string, port int) (*TLSAset, error) {
-	config, c, err := initDNS()
-	if err != nil {
-		return nil, err
-	}
-
-	resolver := os.Getenv(EnvKeyDNSResolver)
-	if resolver == "" {
-		resolver = config.Servers[0] + ":" + config.Port
-	} else {
-		resolver += ":53"
-	}
-
-	TLSAList := make([]*dns.TLSA, 0, 20)
-
-	m := new(dns.Msg)
-	m.SetEdns0(dns.DefaultMsgSize, true)
-
-	tlsaName := fmt.Sprintf("_%d._tcp.%s", port, dns.Fqdn(hostname))
-	m.SetQuestion(tlsaName, dns.TypeTLSA)
-
-	r, _, err := c.Exchange(m, resolver)
-	if err != nil {
-		return nil, err
-	}
-	if r.Rcode != dns.RcodeSuccess {
-		return nil, fmt.Errorf("DNS lookup non-successful: %v", r.Rcode)
-	}
-	if !r.AuthenticatedData {
-		return nil, fmt.Errorf("not AD set for results for %q/%v query", hostname, dns.Type(dns.TypeTLSA))
-	}
-
-	for _, rr := range r.Answer {
-		if rr.Header().Rrtype != dns.TypeTLSA {
-			continue
-		}
-		if tlsa, ok := dns.Copy(rr).(*dns.TLSA); ok {
-			TLSAList = append(TLSAList, tlsa)
+func cbRRTypeTLSA(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
+	switch typ {
+	case dns.TypeTLSA:
+		if tlsa, ok := rr.(*dns.TLSA); ok {
+			return tlsa, nil
 		} else {
-			return nil, errors.New("TLSA record failed to cast to *dns.TLSA")
+			return nil, fmt.Errorf("TLSA record failed to cast to *dns.TLSA [%q/%v]", rrname, dns.Type(typ))
 		}
 	}
+	return nil, fmt.Errorf("BUG: cbRRTypeAddr(%v,..,%q) called, expected TLSA", dns.Type(typ), rrname)
+}
 
-	if len(TLSAList) == 0 {
-		return nil, errors.New("no TLSA records found")
+func ResolveTLSA(hostname string, port int) (*TLSAset, error) {
+	tlsaName := fmt.Sprintf("_%d._tcp.%s", port, dns.Fqdn(hostname))
+	rl, e := resolveRRSecure(cbRRTypeTLSA, tlsaName, dns.TypeTLSA)
+	if e != nil {
+		return nil, e
 	}
+
+	TLSAList := make([]*dns.TLSA, len(rl))
+	for i := range rl {
+		TLSAList[i] = rl[i].(*dns.TLSA)
+	}
+
 	return &TLSAset{
 		RRs:       TLSAList,
 		name:      tlsaName,
