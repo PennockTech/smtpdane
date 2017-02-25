@@ -41,6 +41,8 @@ func probeMX(domainSpec string, status *programStatus) {
 	}
 
 	status.Messagef("found %d MX records for %q: %v", len(hostnameList), domain, hostnameList)
+	// MX returns DNS label sequences for hostnames, so by definition each is already IsFqdn(),
+	// so no need to check before looking for TLSA records, etc.
 
 	seen := make(map[string]struct{}, len(hostnameList))
 	for _, hn := range hostnameList {
@@ -86,6 +88,8 @@ func probeSRV(srvName, domainSpec string, status *programStatus) {
 	}
 
 	status.Messagef("found %d SRV records for %q: %v", len(srvList), lookup, srvList)
+	// SRV returns DNS label sequences for hostnames, so by definition each is already IsFqdn(),
+	// so no need to check before looking for TLSA records, etc.
 
 	seen := make(map[string]struct{}, len(srvList))
 	for _, srv := range srvList {

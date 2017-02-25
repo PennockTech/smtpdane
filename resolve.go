@@ -289,7 +289,7 @@ func cbRRTypeSRV(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
 
 // ResolveSRV returns MX records, we need at least the Port, not just the Target
 func ResolveSRV(lookup string) ([]*dns.SRV, error) {
-	rl, e := resolveRRSecure(cbRRTypeSRV, lookup, dns.TypeSRV)
+	rl, e := resolveRRSecure(cbRRTypeSRV, dns.Fqdn(lookup), dns.TypeSRV)
 	if e != nil {
 		return nil, e
 	}
