@@ -16,10 +16,10 @@ not PKIX CA anchoring.
 Per [RFC7672][] we only support `DANE-TA(2)` and `DANE-EE(3)`;
 `PKIX-TA(0)` and `PKIX-EE(1)` are explicitly unsupported.
 
-To avoid requiring a local DNSSEC validating DNS resolver, DNSSEC is validated
+~~To avoid requiring a local DNSSEC validating DNS resolver, DNSSEC is validated
 inside the `smtpdane` tool.  To achieve this, the root zone trust anchors are
 baked into the code.  Every few years these are rotated and `smtpdane` will
-need to be updated and rebuilt. _\[NB: this functionality not yet implemented,
+need to be updated and rebuilt.~~ _\[NB: this functionality not yet implemented,
 still rely upon a validating resolver right now.\]_
 
 Optionally this client can speak TLS-on-connect instead of STARTTLS, to aid
