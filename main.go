@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -29,11 +30,17 @@ func init() {
 	flag.BoolVar(&opts.showVersion, "version", false, "show version and exit")
 	flag.StringVar(&opts.heloName, "helo", "smtpdane.invalid", "name to send in HELO/EHLO")
 	flag.BoolVar(&opts.noColor, "nocolor", false, "inhibit color output")
+	flag.Var(&opts.akaNames, "aka", "add this also-known-as for all cert validations")
 
 	flag.BoolVar(&opts.mxLookup, "mx", false, "arguments are domains, lookup MX records")
 	flag.BoolVar(&opts.submissionLookup, "submission", false, "arguments are domains, lookup submission SRV records")
 	flag.StringVar(&opts.srvTCPLookup, "srv", "", "arguments are domains, lookup this TCP SRV record")
 }
+
+type akaHostList []string
+
+func (a *akaHostList) Set(s string) error { *a = append(*a, s); return nil }
+func (a *akaHostList) String() string     { return strings.Join(*a, " ") }
 
 func checkFlagsForConflicting() bool {
 	if opts.mxLookup && opts.submissionLookup {

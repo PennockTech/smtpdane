@@ -113,7 +113,15 @@ smtpdane -port 465 -tls-on-connect smtp.example.org
 # on each host which is a submission host for the domain,
 # and speak TLS-on-connect:
 smtpdane -tls-on-connect -submission example.org:465
+
+# Also try checking another hostname
+smtpdane -aka mail.example.net mail.example.org
 ```
+
+Note that the `-aka` names are added to the list of "acceptable" names; you'll
+see each success/failure if you pay attention to the output, but as long as
+_one_ name succeeds, the probe of that `host:ip` will be deemed a success.
+
 
 [RFC7672]: https://tools.ietf.org/html/rfc7672
            "SMTP Security via Opportunistic DNS-Based Authentication of Named Entities (DANE) Transport Layer Security (TLS)"

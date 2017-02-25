@@ -1,7 +1,6 @@
 ### Validation features
 
 * DNSSEC validation in-tool
-* -aka flag, for one or more "okay if it's this" hostnames
 * pubkey anchors, not just cert anchors
 
 ### Other features

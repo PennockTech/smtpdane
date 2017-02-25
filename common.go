@@ -18,6 +18,7 @@ var opts struct {
 	submissionLookup bool
 	srvTCPLookup     string
 	noColor          bool
+	akaNames         akaHostList
 }
 
 type programStatus struct {

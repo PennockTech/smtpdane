@@ -84,12 +84,19 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 		status.Messagef("found %d TLSA records for %q at %q", len(tlsaSet.RRs), tlsaSet.name, tlsaSet.foundName)
 	}
 
+	var altNames []string = nil
+	if len(otherValidNames) > 0 || len(opts.akaNames) > 0 {
+		altNames = make([]string, 0, len(otherValidNames)+len(opts.akaNames))
+		altNames = append(altNames, otherValidNames...)
+		altNames = append(altNames, opts.akaNames...)
+	}
+
 	for _, ip := range ipList {
 		status.probing.Add(1)
 		go validationContext{
 			tlsaSet:  tlsaSet,
 			hostname: hostname,
-			altNames: otherValidNames,
+			altNames: altNames,
 			ip:       ip,
 			port:     port,
 			status:   status,
