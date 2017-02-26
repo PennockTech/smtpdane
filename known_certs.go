@@ -95,6 +95,9 @@ func (k *knownCAt) AddFromPEM(pemCerts []byte) (ok bool) {
 }
 
 func (k *knownCAt) NameForFields(selector, matchingType uint8, caData string) (string, bool) {
+	if k == nil || k.certs == nil {
+		return "", false
+	}
 	key := certKey(fmt.Sprintf("%d/%d/%s", selector, matchingType, caData))
 	ci, ok := k.certs[key]
 	if ok {
