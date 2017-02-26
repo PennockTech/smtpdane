@@ -117,14 +117,22 @@ DNS_RRTYPE_LOOP:
 			err error
 		)
 
+	DNS_RESOLVER_LOOP:
 		for _, resolver := range resolvers {
-			// TODO: add retries
-			r, _, err = c.Exchange(m, resolver)
-			if err != nil {
-				errList.Add(err)
-				r = nil
-				continue
+			c.Net = "udp"
+		RETRY_DNS_LOOKUP:
+			for i := 0; i < config.Attempts; i++ {
+				r, _, err = c.Exchange(m, resolver)
+				if err != nil {
+					if nerr, ok := err.(net.Error); ok && nerr.Timeout() && i < config.Attempts {
+						continue
+					}
+					errList.Add(err)
+					r = nil
+					continue DNS_RESOLVER_LOOP
+				}
 			}
+
 			if r.Rcode != dns.RcodeSuccess {
 				failure, known := dns.RcodeToString[r.Rcode]
 				if !known {
@@ -132,14 +140,24 @@ DNS_RRTYPE_LOOP:
 				}
 				errList.AddErrorf("DNS lookup non-successful [resolver %v]: %v", resolver, failure)
 				r = nil
-				continue
+				continue DNS_RESOLVER_LOOP
 			}
+
+			// Check for truncation first, in case some bad servers truncate
+			// the DNSSEC data needed to be AD.
+			if r.Truncated {
+				c.Net = "tcp"
+				goto RETRY_DNS_LOOKUP
+			}
+
 			// Here we depend upon AD bit and so are still secure, assuming secure
 			// link to trusted resolver.
+			// Assume all our resolvers are equivalent for AD/not, so if not AD, try the
+			// next type (because some DNS servers break horribly on AAAA).
 			if !r.AuthenticatedData {
 				errList.AddErrorf("not AD set for results from %v for %q/%v query", resolver, rrname, dns.Type(typ))
 				r = nil
-				continue
+				continue DNS_RRTYPE_LOOP
 			}
 		}
 
