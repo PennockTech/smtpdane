@@ -145,8 +145,18 @@ DNS_RRTYPE_LOOP:
 					failure = fmt.Sprintf("Rcode<%d> (unknown)", r.Rcode)
 				}
 				errList.AddErrorf("DNS lookup non-successful [resolver %v]: %v", resolver, failure)
+				rcode := r.Rcode
 				r = nil
-				continue DNS_RESOLVER_LOOP
+				// There are enough broken server implementations when it comes
+				// to AD and unknown types (often including AAAA) that we
+				// currently only consider NXDOMAIN definitive.
+				// We can expand upon this as needed.
+				switch rcode {
+				case dns.RcodeNameError:
+					continue DNS_RRTYPE_LOOP
+				default:
+					continue DNS_RESOLVER_LOOP
+				}
 			}
 
 			// Check for truncation first, in case some bad servers truncate
