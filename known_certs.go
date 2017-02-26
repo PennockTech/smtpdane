@@ -213,4 +213,4 @@ func loadKnownCAs() (known *knownCAt) {
 	return
 }
 
-func init() { KnownCAs = loadKnownCAs() }
+func initCertNames() { KnownCAs = loadKnownCAs() }

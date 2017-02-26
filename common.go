@@ -27,6 +27,7 @@ var opts struct {
 	submissionLookup bool
 	srvTCPLookup     string
 	noColor          bool
+	noCertNames      bool
 	akaNames         akaHostList
 	connectTimeout   time.Duration
 }

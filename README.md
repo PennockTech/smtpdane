@@ -34,14 +34,36 @@ domain.
 
 ### Access needed
 
+You should be able to write a security sandbox profile to constrain this tool,
+based upon the information here.  If it's not listed but is needed, then
+that's a documentation bug, please report it.
+
 1. Network connectivity, outbound on port 53, UDP and TCP
+   + If `/etc/resolv.conf` or `DNS_RESOLVER` specifies another port, then that
+     port too
+   + If invoked with a hostname which dispatches to multicast DNS, then likely
+     port 5353
 2. Outbound TCP, on port 25 and any other ports required for monitoring SMTP.
    (587 and 465 are common choices).
-3. Stdio, ability to write to stdout.
-4. `/etc/resolv.conf` unless the `DNS_RESOLVER` environment variable is set.
+   + Ports can be supplied on the command-line, or via SRV records if invoked
+     with `-srv`
+3. Stdio, ability to write to stdout/stderr.
+4. `/etc/resolv.conf`
+   + If the `DNS_RESOLVER` environment variable is set, it's used for
+     resolution, but the libraries still load this file
 5. Read-only access to `$SSL_CERT_FILE` and `$SSL_CERT_DIR` locations, and if
    neither of those is set then to a set of common locations for those files.
-6. No other filesystem access should be required, if statically linked.
+   + Inhibit with `-nocertnames`
+6. Read-only access to `/etc/services`; on many OSes also `/etc/nsswitch.conf`
+   to handle indirection to that, and then if that's _not_ just the file, then
+   wherever else services are read from.  Sometimes other `/etc` files used
+   for DNS resolution.
+7. Usually some source of system entropy (`/dev/urandom`) if not available via
+   a system call.
+8. Any other common OS start-up files used even for statically linked files.
+   + Eg, `/etc/malloc.conf` on some OSes
+9. No other filesystem access should be required, if statically linked.
+   + otherwise, everything used by the dynamic loader too
 
 
 ## Installation

@@ -48,6 +48,12 @@ func initDNS() (*dns.ClientConfig, *dns.Client, error) {
 		if err != nil {
 			return nil, nil, err
 		}
+	} else {
+		// we now use the config always, for things like timeouts,
+		// so construct a skeletal one
+		conf = &dns.ClientConfig{
+			Attempts: 3,
+		}
 	}
 
 	c := new(dns.Client)
