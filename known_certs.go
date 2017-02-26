@@ -154,12 +154,22 @@ func loadKnownCAs() (known *knownCAt) {
 	var (
 		fileList = commonCertFileLocations
 		dirList  = commonCertDirLocations
+		valid    bool
 	)
-	// empty or invalid env-vars inhibit system loading; deliberate
-	if fn, ok := os.LookupEnv(envKeySSLfile); ok {
+	// empty or invalid env-vars inhibit system loading; that's deliberate.
+	// If either is set, then _only_ those from env are tried.
+	// If neither is set, the first location found at all, wins.
+	// If both are set, then both are loaded.
+	fn, okf := os.LookupEnv(envKeySSLfile)
+	dn, okd := os.LookupEnv(envKeySSLdir)
+	if okf || okd {
+		fileList = nil
+		dirList = nil
+	}
+	if okf {
 		fileList = []string{fn}
 	}
-	if dn, ok := os.LookupEnv(envKeySSLdir); ok {
+	if okd {
 		dirList = []string{dn}
 	}
 
@@ -168,6 +178,13 @@ func loadKnownCAs() (known *knownCAt) {
 		if err == nil {
 			ok := known.AddFromPEM(data)
 			if ok {
+				if okd {
+					// explicitly given SSL_CERT_DIR and, since we're here,
+					// also SSL_CERT_FILE (else would've ranged nil fileList).
+					// Iff explicitly given both, then load both.
+					valid = true
+					break
+				}
 				return
 			}
 		}
@@ -190,7 +207,10 @@ func loadKnownCAs() (known *knownCAt) {
 		}
 	}
 
-	return nil
+	if !valid {
+		known = nil
+	}
+	return
 }
 
 func init() { KnownCAs = loadKnownCAs() }
