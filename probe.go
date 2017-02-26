@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/smtp"
 	"net/textproto"
+	"strings"
 	"time"
 
 	"go.pennock.tech/smtpdane/internal/errorlist"
@@ -78,11 +79,18 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 		}
 		return
 	}
+
+	tlsaLines := make([]string, 1+len(tlsaSet.RRs))
 	if tlsaSet.name == tlsaSet.foundName {
-		status.Messagef("found %d TLSA records for %q", len(tlsaSet.RRs), tlsaSet.name)
+		tlsaLines[0] = fmt.Sprintf("found %d TLSA records for %q", len(tlsaSet.RRs), tlsaSet.name)
 	} else {
-		status.Messagef("found %d TLSA records for %q at %q", len(tlsaSet.RRs), tlsaSet.name, tlsaSet.foundName)
+		tlsaLines[0] = fmt.Sprintf("found %d TLSA records for %q at %q", len(tlsaSet.RRs), tlsaSet.name, tlsaSet.foundName)
 	}
+	// sort, or leave as-is showing round-robin results order?
+	for i := range tlsaSet.RRs {
+		tlsaLines[i+1] = TLSAMediumString(tlsaSet.RRs[i])
+	}
+	status.Message(strings.Join(tlsaLines, "\n  "))
 
 	var altNames []string = nil
 	if len(otherValidNames) > 0 || len(opts.akaNames) > 0 {

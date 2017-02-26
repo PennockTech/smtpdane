@@ -243,11 +243,37 @@ func ResolveTLSA(hostname string, port int) (*TLSAset, error) {
 // TLSAShortString provides something suitable for output without showing the
 // full contents; for our uses, we don't need the RR_Header and for
 // full-certs-in-DNS we don't _want_ to print it all.
+// Viktor points out that for full certs in DNS, the start of the record will
+// be less useful, so show the _last_ 16 octets
+// TLSAShortString is "enough to probably fit on a line with much other text".
 func TLSAShortString(rr *dns.TLSA) string {
-	return strconv.Itoa(int(rr.Usage)) +
-		" " + strconv.Itoa(int(rr.Selector)) +
-		" " + strconv.Itoa(int(rr.MatchingType)) +
-		" " + rr.Certificate[:16] + "..."
+	offset := len(rr.Certificate) - 16
+	prefix := "..."
+	if offset < 0 {
+		offset = 0
+		prefix = ""
+	}
+	return strconv.Itoa(int(rr.Usage)) + " " +
+		strconv.Itoa(int(rr.Selector)) + " " +
+		strconv.Itoa(int(rr.MatchingType)) + " " +
+		prefix + rr.Certificate[offset:]
+}
+
+// TLSAMediumString is for where the TLSA record is probably all that's on a line.
+// Assume 2 leading spaces, 1 digit for each of the three leading fields, a space
+// after each, that's 8, allow for 70.
+func TLSAMediumString(rr *dns.TLSA) string {
+	var rest, prefix string
+	if len(rr.Certificate) <= 70 {
+		rest = rr.Certificate
+	} else {
+		prefix = "..."
+		rest = rr.Certificate[(len(rr.Certificate) - 67):]
+	}
+	return strconv.Itoa(int(rr.Usage)) + " " +
+		strconv.Itoa(int(rr.Selector)) + " " +
+		strconv.Itoa(int(rr.MatchingType)) + " " +
+		prefix + rest
 }
 
 func cbRRTypeMX(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
