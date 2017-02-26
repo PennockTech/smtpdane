@@ -22,14 +22,16 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 func init() {
+	flag.BoolVar(&opts.showVersion, "version", false, "show version and exit")
+	flag.BoolVar(&opts.noColor, "nocolor", false, "inhibit color output")
 	flag.StringVar(&opts.defaultPort, "port", "smtp(25)", "port to connect to")
 	flag.BoolVar(&opts.tlsOnConnect, "tls-on-connect", false, "start TLS immediately upon connection")
-	flag.BoolVar(&opts.showVersion, "version", false, "show version and exit")
+	flag.DurationVar(&opts.connectTimeout, "connect-timeout", 10*time.Second, "timeout for SMTP connection establishment")
 	flag.StringVar(&opts.heloName, "helo", "smtpdane.invalid", "name to send in HELO/EHLO")
-	flag.BoolVar(&opts.noColor, "nocolor", false, "inhibit color output")
 	flag.Var(&opts.akaNames, "aka", "add this also-known-as for all cert validations")
 
 	flag.BoolVar(&opts.mxLookup, "mx", false, "arguments are domains, lookup MX records")

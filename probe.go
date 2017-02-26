@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/smtp"
 	"net/textproto"
+	"strconv"
 	"strings"
 	"time"
 
@@ -121,7 +122,19 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 func (vc validationContext) probeAddr() {
 	defer vc.status.probing.Done()
 
-	conn, err := net.DialTCP("tcp", nil, &net.TCPAddr{vc.ip, vc.port, ""})
+	// DialTCP takes the vc.ip/vc.port sensibly, but the moment we want timeout
+	// control, we need to go through a function which wants us to join them
+	// back into a string first (and so risks the library using DNS).
+	//
+	// If we think there's a serious risk of that, when given input which looks
+	// like IPs, we can now provide a Resolver which fails for hostnames.
+	// Alternatively, we could use our own timeout logic, but doing that cleanly
+	// requires providing the cancel channel, which is now a deprecated interface.
+	// So we can do things "simple but deprecated" or "jumping through many hoops"
+	// because the sane way is being hidden away behind too much abstraction.
+	raddr := net.JoinHostPort(vc.ip.String(), strconv.Itoa(vc.port))
+
+	conn, err := net.DialTimeout("tcp", raddr, opts.connectTimeout)
 	if err != nil {
 		vc.status.Errorf("dial failed: %s", err)
 		return

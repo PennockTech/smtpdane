@@ -6,6 +6,7 @@ package main
 
 import (
 	"sync"
+	"time"
 )
 
 var opts struct {
@@ -19,6 +20,7 @@ var opts struct {
 	srvTCPLookup     string
 	noColor          bool
 	akaNames         akaHostList
+	connectTimeout   time.Duration
 }
 
 type programStatus struct {
