@@ -88,7 +88,12 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 	}
 	// sort, or leave as-is showing round-robin results order?
 	for i := range tlsaSet.RRs {
-		tlsaLines[i+1] = TLSAMediumString(tlsaSet.RRs[i])
+		name, ok := KnownCAs.NameForTLSA(tlsaSet.RRs[i])
+		if ok {
+			tlsaLines[i+1] = TLSAMediumString(tlsaSet.RRs[i]) + " ; " + name
+		} else {
+			tlsaLines[i+1] = TLSAMediumString(tlsaSet.RRs[i])
+		}
 	}
 	status.Message(strings.Join(tlsaLines, "\n  "))
 
