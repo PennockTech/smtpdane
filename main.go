@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"time"
 )
@@ -38,11 +37,6 @@ func init() {
 	flag.BoolVar(&opts.submissionLookup, "submission", false, "arguments are domains, lookup submission SRV records")
 	flag.StringVar(&opts.srvTCPLookup, "srv", "", "arguments are domains, lookup this TCP SRV record")
 }
-
-type akaHostList []string
-
-func (a *akaHostList) Set(s string) error { *a = append(*a, s); return nil }
-func (a *akaHostList) String() string     { return strings.Join(*a, " ") }
 
 func checkFlagsForConflicting() bool {
 	if opts.mxLookup && opts.submissionLookup {

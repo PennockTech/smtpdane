@@ -2,9 +2,17 @@
 // All rights reserved, except as granted under license.
 // Licensed per file LICENSE.txt
 
+// This file does not have build-tag constraints, and should build fine on
+// versions of Go before 1.8; the goal is that non-Go-programmers who use `go
+// get` with an old Go should get one simple message, not drowned out in noise
+// of other errors, saying clearly that their Go is too old.
+//
+// Otherwise, this stuff would all be in main.go
+
 package main
 
 import (
+	"strings"
 	"sync"
 	"time"
 )
@@ -28,3 +36,8 @@ type programStatus struct {
 	errorCount uint32 // only access via sync/atomic while go-routines running
 	output     chan<- string
 }
+
+type akaHostList []string
+
+func (a *akaHostList) Set(s string) error { *a = append(*a, s); return nil }
+func (a *akaHostList) String() string     { return strings.Join(*a, " ") }
