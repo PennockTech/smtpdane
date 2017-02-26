@@ -39,7 +39,9 @@ domain.
    (587 and 465 are common choices).
 3. Stdio, ability to write to stdout.
 4. `/etc/resolv.conf` unless the `DNS_RESOLVER` environment variable is set.
-5. No other filesystem access should be required, if statically linked.
+5. Read-only access to `$SSL_CERT_FILE` and `$SSL_CERT_DIR` locations, and if
+   neither of those is set then to a set of common locations for those files.
+6. No other filesystem access should be required, if statically linked.
 
 
 ## Installation
