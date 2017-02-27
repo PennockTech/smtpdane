@@ -1,0 +1,68 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 66 (0x42)
+    Signature Algorithm: ecdsa-with-SHA256
+        Issuer: C=US, O=Example, OU=SMTP-DANE, CN=Dummy untrustworthy CA for testing
+        Validity
+            Not Before: Feb 27 02:35:41 2017 GMT
+            Not After : Feb 22 02:35:41 2037 GMT
+        Subject: CN=mail.test.invalid
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub: 
+                    04:9e:34:01:ca:d2:1b:11:84:2c:21:3e:8a:a9:6e:
+                    20:ed:bf:c5:01:58:4f:32:21:cc:27:34:2e:47:17:
+                    db:3c:99:a3:19:76:e0:76:16:ad:d0:a2:2c:f6:02:
+                    23:32:9e:af:94:27:6a:cd:ae:73:00:c4:7c:81:f9:
+                    75:ac:c2:21:78
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+        X509v3 extensions:
+            X509v3 Basic Constraints: 
+                CA:FALSE
+            Netscape Comment: 
+                Dummy untrustworthy TLS server certificate for SMTP DANE
+            X509v3 Subject Key Identifier: 
+                74:7E:BF:86:C6:9F:C6:45:F2:8E:82:2C:10:BE:A3:ED:E4:4B:FE:B0
+            X509v3 Authority Key Identifier: 
+                keyid:85:F6:75:CB:41:41:9D:C3:B4:99:A0:C4:D3:B2:26:77:B3:C5:CF:2E
+                DirName:/C=US/O=Example/OU=SMTP-DANE/CN=Dummy untrustworthy CA for testing
+                serial:01:23:45:67
+
+            X509v3 Key Usage: 
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage: 
+                TLS Web Server Authentication, Netscape Server Gated Crypto, Microsoft Server Gated Crypto
+            Netscape Cert Type: 
+                SSL Server
+            X509v3 Subject Alternative Name: 
+                DNS:mail.test.invalid, DNS:signedok.test.invalid, DNS:unsigned.test.invalid
+    Signature Algorithm: ecdsa-with-SHA256
+         30:66:02:31:00:93:e7:86:e0:b2:1b:e9:b4:3e:6f:be:7c:0d:
+         16:71:08:98:2c:e2:9c:dd:9e:fa:9b:1c:e4:49:04:9c:24:61:
+         79:57:14:3a:98:89:11:23:09:d7:02:58:63:15:27:24:8e:02:
+         31:00:8e:64:62:8e:c0:0f:0b:6b:9f:41:ab:16:38:40:a0:58:
+         61:1b:ce:81:b5:ff:ec:f1:4b:2b:36:24:ac:27:7b:55:e5:21:
+         eb:04:b7:c1:1f:d7:e9:4d:7d:dc:9c:df:ce:d0
+-----BEGIN CERTIFICATE-----
+MIIDLTCCArKgAwIBAgIBQjAKBggqhkjOPQQDAjBgMQswCQYDVQQGEwJVUzEQMA4G
+A1UECgwHRXhhbXBsZTESMBAGA1UECwwJU01UUC1EQU5FMSswKQYDVQQDDCJEdW1t
+eSB1bnRydXN0d29ydGh5IENBIGZvciB0ZXN0aW5nMB4XDTE3MDIyNzAyMzU0MVoX
+DTM3MDIyMjAyMzU0MVowHDEaMBgGA1UEAxMRbWFpbC50ZXN0LmludmFsaWQwWTAT
+BgcqhkjOPQIBBggqhkjOPQMBBwNCAASeNAHK0hsRhCwhPoqpbiDtv8UBWE8yIcwn
+NC5HF9s8maMZduB2Fq3Qoiz2AiMynq+UJ2rNrnMAxHyB+XWswiF4o4IBnzCCAZsw
+CQYDVR0TBAIwADBHBglghkgBhvhCAQ0EOhY4RHVtbXkgdW50cnVzdHdvcnRoeSBU
+TFMgc2VydmVyIGNlcnRpZmljYXRlIGZvciBTTVRQIERBTkUwHQYDVR0OBBYEFHR+
+v4bGn8ZF8o6CLBC+o+3kS/6wMIGNBgNVHSMEgYUwgYKAFIX2dctBQZ3DtJmgxNOy
+Jnezxc8uoWSkYjBgMQswCQYDVQQGEwJVUzEQMA4GA1UECgwHRXhhbXBsZTESMBAG
+A1UECwwJU01UUC1EQU5FMSswKQYDVQQDDCJEdW1teSB1bnRydXN0d29ydGh5IENB
+IGZvciB0ZXN0aW5nggQBI0VnMAsGA1UdDwQEAwIFoDAqBgNVHSUEIzAhBggrBgEF
+BQcDAQYJYIZIAYb4QgQBBgorBgEEAYI3CgMDMBEGCWCGSAGG+EIBAQQEAwIGQDBK
+BgNVHREEQzBBghFtYWlsLnRlc3QuaW52YWxpZIIVc2lnbmVkb2sudGVzdC5pbnZh
+bGlkghV1bnNpZ25lZC50ZXN0LmludmFsaWQwCgYIKoZIzj0EAwIDaQAwZgIxAJPn
+huCyG+m0Pm++fA0WcQiYLOKc3Z76mxzkSQScJGF5VxQ6mIkRIwnXAlhjFSckjgIx
+AI5kYo7ADwtrn0GrFjhAoFhhG86Btf/s8UsrNiSsJ3tV5SHrBLfBH9fpTX3cnN/O
+0A==
+-----END CERTIFICATE-----

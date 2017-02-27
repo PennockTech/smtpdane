@@ -1,0 +1,59 @@
+SUBJECTALTNAME		= email:copy
+NSCERTTYPE		= server
+
+[ ca ]
+default_ca	= CA_dummy
+
+[ CA_dummy ]
+
+dir		= .
+certs		= $dir
+crl_dir		= $dir
+database	= ca_index.txt
+serial		= ca_serial.txt
+new_certs_dir	= $dir
+unique_subject	= no
+certificate	= $dir/ca.pem
+private_key	= $dir/ca.key
+x509_extensions	= dummy_x509_ext
+default_md	= sha256
+
+name_opt	= ca_default
+cert_opt	= ca_default
+policy		= policy_anything
+copy_extensions	= copy
+
+[ policy_anything ]
+countryName		= optional
+stateOrProvinceName	= optional
+localityName		= optional
+organizationName	= optional
+organizationalUnitName	= optional
+commonName		= supplied
+emailAddress		= optional
+
+[ req ]
+default_md		= sha256
+utf8			= yes
+string_mask		= nombstr
+req_extensions		= v3_req
+
+[ v3_req ]
+basicConstraints	= CA:FALSE
+keyUsage		= nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName		= ${ENV::SUBJECTALTNAME}
+
+[ v3_ca ]
+subjectKeyIdentifier	= hash
+authorityKeyIdentifier	= keyid:always,issuer:always
+basicConstraints	= CA:true
+
+[ dummy_x509_ext ]
+basicConstraints	= CA:FALSE
+nsComment		= "Dummy untrustworthy TLS server certificate for SMTP DANE"
+subjectKeyIdentifier	= hash
+authorityKeyIdentifier	= keyid,issuer:always
+keyUsage		= digitalSignature, keyEncipherment
+extendedKeyUsage	= serverAuth, nsSGC, msSGC
+nsCertType		= ${ENV::NSCERTTYPE}
+

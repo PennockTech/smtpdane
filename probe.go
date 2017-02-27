@@ -172,6 +172,12 @@ func (vc validationContext) probeAddr() {
 		return
 	}
 
+	// split out into a separate function which can be invoked by testing
+	// utilities on a pre-established connection.
+	vc.probeConnectedAddr(conn)
+}
+
+func (vc validationContext) probeConnectedAddr(conn net.Conn) {
 	tlsConfig := &tls.Config{
 		ServerName:            vc.hostname,
 		InsecureSkipVerify:    true, // we verify ourselves in the VerifyPeerCertificate
