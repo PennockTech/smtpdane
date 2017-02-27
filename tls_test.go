@@ -89,7 +89,7 @@ func (s smtpSender) sendf(spec string, args ...interface{}) {
 	fmt.Fprintf(s.w, spec+"\r\n", args...)
 }
 
-func newTestSMTPServer(t *testing.T, hostname string) net.Conn {
+func newTestSMTPServer(t *testing.T, hostname string, tlsOnConnect bool) net.Conn {
 	svrTLS, ok := hostnameToCertChain[hostname]
 	if !ok {
 		t.Fatalf("no server config available for host %q", hostname)
@@ -98,8 +98,15 @@ func newTestSMTPServer(t *testing.T, hostname string) net.Conn {
 	clConn, svrConn := net.Pipe()
 
 	// chunks of this bit ripped from net/smtp/smtp_test.go
-	go func(c net.Conn, hostname string, tlsCert tls.Certificate, t *testing.T) {
+	go func(c net.Conn, hostname string, tlsCert tls.Certificate, tlsOnConnect bool, t *testing.T) {
+		inTLS := false
 		sendf := smtpSender{c}.sendf
+		if tlsOnConnect {
+			config := &tls.Config{Certificates: []tls.Certificate{tlsCert}}
+			c = tls.Server(c, config)
+			sendf = smtpSender{c}.sendf
+			inTLS = true
+		}
 		sendf("220 %s ESMTP mock ready", hostname)
 		s := bufio.NewScanner(c)
 	RESTART_SCAN:
@@ -112,9 +119,16 @@ func newTestSMTPServer(t *testing.T, hostname string) net.Conn {
 				t.Logf("EHLO seen from %q", rest)
 				// unchecked index; ok for test
 				sendf("250-%s ESMTP offers a warm hug of welcome to %s", hostname, rest)
-				sendf("250-STARTTLS")
+				if !inTLS {
+					sendf("250-STARTTLS")
+				}
 				sendf("250 Ok")
 			case "STARTTLS":
+				if inTLS {
+					t.Error("Got STARTTLS inside TLS session")
+					sendf("503 STARTTLS command used when not advertised")
+					continue
+				}
 				sendf("220 Go ahead")
 				config := &tls.Config{Certificates: []tls.Certificate{tlsCert}}
 				c = tls.Server(c, config)
@@ -133,15 +147,31 @@ func newTestSMTPServer(t *testing.T, hostname string) net.Conn {
 		}
 		t.Log("lost connection without QUIT?")
 		c.Close()
-	}(svrConn, hostname, svrTLS, t)
+	}(svrConn, hostname, svrTLS, tlsOnConnect, t)
 
 	return clConn
 }
 
 func TestProbeConnection(t *testing.T) {
 	vc, messages := newTestValidationContext("mail.test.invalid")
+	conn := newTestSMTPServer(t, "mail.test.invalid", false)
 
-	conn := newTestSMTPServer(t, "mail.test.invalid")
+	go func(ms chan<- string) {
+		vc.probeConnectedAddr(conn)
+		close(ms)
+	}(messages)
+
+	for msg := range messages {
+		t.Log(msg)
+	}
+}
+
+func TestProbeTLSOnConnect(t *testing.T) {
+	opts.tlsOnConnect = true
+	defer func() { opts.tlsOnConnect = false }()
+	vc, messages := newTestValidationContext("mail.test.invalid")
+	vc.port = 465
+	conn := newTestSMTPServer(t, "mail.test.invalid", true)
 
 	go func(ms chan<- string) {
 		vc.probeConnectedAddr(conn)
