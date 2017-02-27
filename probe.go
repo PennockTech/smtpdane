@@ -106,6 +106,12 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 	}
 
 	for _, ip := range ipList {
+		if opts.onlyIPv4 && ip.To4() == nil {
+			continue
+		}
+		if opts.onlyIPv6 && ip.To4() != nil {
+			continue
+		}
 		status.probing.Add(1)
 		go validationContext{
 			tlsaSet:  tlsaSet,

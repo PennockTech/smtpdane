@@ -30,6 +30,8 @@ var opts struct {
 	noCertNames      bool
 	akaNames         akaHostList
 	connectTimeout   time.Duration
+	onlyIPv4         bool
+	onlyIPv6         bool
 }
 
 type programStatus struct {

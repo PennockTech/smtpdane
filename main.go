@@ -37,6 +37,9 @@ func init() {
 	flag.BoolVar(&opts.mxLookup, "mx", false, "arguments are domains, lookup MX records")
 	flag.BoolVar(&opts.submissionLookup, "submission", false, "arguments are domains, lookup submission SRV records")
 	flag.StringVar(&opts.srvTCPLookup, "srv", "", "arguments are domains, lookup this TCP SRV record")
+
+	flag.BoolVar(&opts.onlyIPv4, "4", false, "only probe IPv4 addresses")
+	flag.BoolVar(&opts.onlyIPv6, "6", false, "only probe IPv6 addresses")
 }
 
 func checkFlagsForConflicting() bool {
@@ -52,6 +55,12 @@ func checkFlagsForConflicting() bool {
 		fmt.Fprintf(os.Stderr, "%s: -submission and -srv SRV conflict\n", os.Args[0])
 		return true
 	}
+
+	if opts.onlyIPv4 && opts.onlyIPv6 {
+		fmt.Fprintf(os.Stderr, "%s: -4 and -6 conflict\n", os.Args[0])
+		return true
+	}
+
 	return false
 }
 
