@@ -220,6 +220,9 @@ func (vc validationContext) probeConnectedAddr(conn net.Conn) {
 	if err != nil {
 		vc.Errorf("STARTTLS failed: %s", err)
 	}
+	if tlsState, ok := s.TLSConnectionState(); ok {
+		vc.Messagef("TLS session: version=%04x ciphersuite=%04x", tlsState.Version, tlsState.CipherSuite)
+	}
 	err = s.Quit()
 	if err != nil {
 		vc.Errorf("QUIT failed: %s", err)
@@ -239,6 +242,8 @@ func (vc validationContext) tryTLSOnConn(conn net.Conn, tlsConfig *tls.Config) {
 		return
 	}
 
+	vc.Messagef("TLS session: version=%04x ciphersuite=%04x", c.ConnectionState().Version, c.ConnectionState().CipherSuite)
+
 	id, err := t.Cmd("EHLO %s", vc.hostname)
 	t.StartResponse(id)
 	_, _, err = t.ReadResponse(250)
@@ -254,5 +259,10 @@ func (vc validationContext) tryTLSOnConn(conn net.Conn, tlsConfig *tls.Config) {
 	if err != nil {
 		vc.Errorf("QUIT failed: %s", err)
 	}
+
+	// When speaking to OpenSSL servers, we shut down cleanly without grabbing
+	// the EOF first, but when speaking to Golang TLS, that fails us.
+	_, err = t.ReadLine()
+
 	t.Close()
 }

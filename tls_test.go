@@ -112,7 +112,7 @@ func newTestSMTPServer(t *testing.T, hostname string, tlsOnConnect bool) net.Con
 	RESTART_SCAN:
 		for s.Scan() {
 			cmd := s.Text()
-			verb := strings.Fields(cmd)[0]
+			verb := strings.ToUpper(strings.Fields(cmd)[0])
 			rest := strings.TrimSpace(cmd[len(verb):])
 			switch verb {
 			case "EHLO":
@@ -136,17 +136,22 @@ func newTestSMTPServer(t *testing.T, hostname string, tlsOnConnect bool) net.Con
 				s = bufio.NewScanner(c)
 				goto RESTART_SCAN
 			case "QUIT":
-				t.Log("got quit")
-				//sendf("221 bye")
-				c.Close()
+				sendf("221 %s closing connection", hostname)
+				if err := c.Close(); err != nil {
+					t.Errorf("svr failed to close connection: %s", err)
+				}
 				return
 			default:
-				c.Close()
+				if err := c.Close(); err != nil {
+					t.Errorf("svr failed to close connection: %s", err)
+				}
 				t.Fatalf("unrecognized command: %q", s.Text())
 			}
 		}
 		t.Log("lost connection without QUIT?")
-		c.Close()
+		if err := c.Close(); err != nil {
+			t.Errorf("svr failed to close connection: %s", err)
+		}
 	}(svrConn, hostname, svrTLS, tlsOnConnect, t)
 
 	return clConn
