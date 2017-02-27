@@ -57,7 +57,7 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 		return
 	}
 
-	ipList, err := ResolveAddrSecure(hostname)
+	ipList, resolvedHostname, err := ResolveAddrSecure(hostname)
 	if err != nil {
 		switch e := err.(type) {
 		case *errorlist.List:
@@ -68,17 +68,43 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 		return
 	}
 
-	status.Messagef("found %d addresses for %q: %v", len(ipList), hostname, ipList)
+	if resolvedHostname == hostname {
+		status.Messagef("found %d addresses for %q: %v", len(ipList), hostname, ipList)
+	} else {
+		if opts.mxLookup {
+			// Being generous by not just deeming this an error; still, mark it red
+			status.Messagef(ColorRed("VIOLATION: MX hostname is a CNAME: %q -> %q"), hostname, resolvedHostname)
+		}
+		status.Messagef("found %d addresses for %q at %q: %v", len(ipList), hostname, resolvedHostname, ipList)
+	}
 
-	tlsaSet, err := ResolveTLSA(hostname, port)
+	// RFC 7671 section 7: chase CNAMEs (as long as secure) of Base Domain and
+	// try for TLSA there first, but then fall back to the original name if not
+	// found.  Only the final name and original name should be tried, not any
+	// intermediate CNAMEs if they were chained.
+	//
+	// MX hostnames are not supposed to be CNAMEs so this _shouldn't_ crop up.
+	// But if it does, handle it.
+
+	tlsaSet, err := ResolveTLSA(resolvedHostname, port)
 	if err != nil {
 		switch e := err.(type) {
 		case *errorlist.List:
-			status.Errorf("error resolving TLSA for %q port %d:\n%s", hostname, port, e.FmtIndented())
+			status.Errorf("error resolving TLSA for %q port %d:\n%s", resolvedHostname, port, e.FmtIndented())
 		default:
-			status.Errorf("error resolving TLSA for %q port %d: %v", hostname, port, err)
+			status.Errorf("error resolving TLSA for %q port %d: %v", resolvedHostname, port, err)
 		}
-		return
+
+		tlsaSet, err = ResolveTLSA(hostname, port)
+		if err != nil {
+			switch e := err.(type) {
+			case *errorlist.List:
+				status.Errorf("error resolving TLSA for %q port %d:\n%s", hostname, port, e.FmtIndented())
+			default:
+				status.Errorf("error resolving TLSA for %q port %d: %v", hostname, port, err)
+			}
+			return
+		}
 	}
 
 	tlsaLines := make([]string, 1+len(tlsaSet.RRs))

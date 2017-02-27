@@ -207,17 +207,22 @@ DNS_RRTYPE_LOOP:
 // There's a lot of repetition/boilerplate in the below.
 // If we expand beyond where we are at now, then we really should consider reflection; more complexity, less repetition.
 
+type addrRecord struct {
+	addr   net.IP
+	rrname string
+}
+
 func cbRRTypeAddr(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
 	switch typ {
 	case dns.TypeA:
 		if ip, ok := rr.(*dns.A); ok {
-			return ip.A, nil
+			return addrRecord{ip.A, rr.Header().Name}, nil
 		} else {
 			return nil, fmt.Errorf("A record failed to cast to *dns.A [%q/%v]", rrname, dns.Type(typ))
 		}
 	case dns.TypeAAAA:
 		if ip, ok := rr.(*dns.AAAA); ok {
-			return ip.AAAA, nil
+			return addrRecord{ip.AAAA, rr.Header().Name}, nil
 		} else {
 			return nil, fmt.Errorf("AAAA record failed to cast to *dns.AAAA [%q/%v]", rrname, dns.Type(typ))
 		}
@@ -225,16 +230,24 @@ func cbRRTypeAddr(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
 	return nil, fmt.Errorf("BUG: cbRRTypeAddr(%v,..,%q) called, expected A/AAAA", dns.Type(typ), rrname)
 }
 
-func ResolveAddrSecure(hostname string) ([]net.IP, error) {
+func ResolveAddrSecure(hostname string) ([]net.IP, string, error) {
 	rl, e := resolveRRSecure(cbRRTypeAddr, dns.Fqdn(hostname), dns.TypeAAAA, dns.TypeA)
 	if e != nil {
-		return nil, e
+		return nil, "", e
 	}
+	var resolvedName string
 	addrList := make([]net.IP, len(rl))
 	for i := range rl {
-		addrList[i] = rl[i].(net.IP)
+		ar := rl[i].(addrRecord)
+		addrList[i] = ar.addr
+		if resolvedName != "" && resolvedName != ar.rrname {
+			return nil, "", fmt.Errorf("seen multiple RRnames for %q: both %q & %q", hostname, resolvedName, ar.rrname)
+		}
+		if resolvedName == "" {
+			resolvedName = ar.rrname
+		}
 	}
-	return addrList, nil
+	return addrList, resolvedName, nil
 }
 
 type TLSAset struct {
