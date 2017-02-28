@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func peerCertificateVerifierFor(vc validationContext) func([][]byte, [][]*x509.Certificate) error {
@@ -126,7 +127,15 @@ func (vc validationContext) showCertChainInfo(cert1 *x509.Certificate, certs ...
 	certPtrList[0] = cert1
 	certPtrList = append(certPtrList, certs...)
 
-	// FIXME: expiration warning goes here
+	if opts.expirationWarning != 0 {
+		minReqTime := time.Now().Add(opts.expirationWarning)
+		for i, c := range certPtrList {
+			if c.NotAfter.Before(minReqTime) {
+				vc.Errorf("Cert %d EXPIRING SOON: within %v of %v for cert %s",
+					i, opts.expirationWarning, c.NotAfter, strconv.QuoteToGraphic(c.Subject.CommonName))
+			}
+		}
+	}
 
 	if !opts.showCertInfo {
 		return
@@ -136,15 +145,11 @@ func (vc validationContext) showCertChainInfo(cert1 *x509.Certificate, certs ...
 
 	const LinesPerCert = 4
 	lines := make([]string, len(certPtrList)*LinesPerCert)
-	for ci := range certPtrList {
-		lines[ci*LinesPerCert+0] = fmt.Sprintf("  [%d] CN=%s",
-			ci+1, strconv.QuoteToGraphic(certPtrList[ci].Subject.CommonName))
-		lines[ci*LinesPerCert+1] = fmt.Sprintf("\tSAN: %v %v",
-			certPtrList[ci].DNSNames, certPtrList[ci].IPAddresses)
-		lines[ci*LinesPerCert+2] = fmt.Sprintf("\tValid: %v - %v",
-			certPtrList[ci].NotBefore, certPtrList[ci].NotAfter)
-		lines[ci*LinesPerCert+3] = fmt.Sprintf("\tSerial=%v SignedWith: %v",
-			certPtrList[ci].SerialNumber, certPtrList[ci].SignatureAlgorithm)
+	for ci, c := range certPtrList {
+		lines[ci*LinesPerCert+0] = fmt.Sprintf("  [%d] CN=%s", ci+1, strconv.QuoteToGraphic(c.Subject.CommonName))
+		lines[ci*LinesPerCert+1] = fmt.Sprintf("\tSAN: %v %v", c.DNSNames, c.IPAddresses)
+		lines[ci*LinesPerCert+2] = fmt.Sprintf("\tValid: %v - %v", c.NotBefore, c.NotAfter)
+		lines[ci*LinesPerCert+3] = fmt.Sprintf("\tSerial=%v SignedWith: %v", c.SerialNumber, c.SignatureAlgorithm)
 	}
 
 	vc.Messagef("Certificate chain of %d certs:\n%s", len(certPtrList), strings.Join(lines, "\n"))
