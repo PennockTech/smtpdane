@@ -127,8 +127,8 @@ smtpdane -mx example.org
 # Regular lookup of SMTP Submission for a domain:
 smtpdane -submission example.org
 
-# Connect to port 26 for a server:
-smtpdane -port 26 mx1.example.org
+# Connect to port 26 for a server, IPv4-only:
+smtpdane -4 -port 26 mx1.example.org
 
 # Check TLS-on-connect for a server:
 smtpdane -port 465 -tls-on-connect smtp.example.org
@@ -140,11 +140,27 @@ smtpdane -tls-on-connect -submission example.org:465
 
 # Also try checking another hostname
 smtpdane -aka mail.example.net mail.example.org
+
+# See much more information about the certs
+smtpdane -show-cert-info -mx example.org
+
+# See expiring certificates much sooner; alas, Golang duration parsing
+# maxes out in units of hours, so extend in shell;
+# 3 months of 31 days each, 24 hours per day, don't forget 'h' unit
+smtpdane -expiration-warning $((3*31*24))h -mx example.org
 ```
 
 Note that the `-aka` names are added to the list of "acceptable" names; you'll
 see each success/failure if you pay attention to the output, but as long as
 _one_ name succeeds, the probe of that `host:ip` will be deemed a success.
+
+An expiring-soon cert counts as an error (thus causing command exit with
+non-zero status) once we're within the `-expiration-warning` duration of the
+expiration timestamp (`NotAfter` time) of _any_ certificate in the chain; each
+certificate must be valid.  A normal TLS client only checks the current time.
+Use `-expiration-warning 0s` to disable this check entirely; use
+`-expiration-warning 1ns` to shift the warning to be enabled (1 nanosecond
+before the real time).
 
 
 [RFC7672]: https://tools.ietf.org/html/rfc7672
