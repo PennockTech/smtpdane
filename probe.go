@@ -220,8 +220,10 @@ func (vc validationContext) probeConnectedAddr(conn net.Conn) {
 	if err != nil {
 		vc.Errorf("STARTTLS failed: %s", err)
 	}
-	if tlsState, ok := s.TLSConnectionState(); ok {
-		vc.Messagef("TLS session: version=%04x ciphersuite=%04x", tlsState.Version, tlsState.CipherSuite)
+	if opts.showCertInfo {
+		if tlsState, ok := s.TLSConnectionState(); ok {
+			vc.checkCertInfo(tlsState)
+		}
 	}
 	err = s.Quit()
 	if err != nil {
@@ -242,7 +244,7 @@ func (vc validationContext) tryTLSOnConn(conn net.Conn, tlsConfig *tls.Config) {
 		return
 	}
 
-	vc.Messagef("TLS session: version=%04x ciphersuite=%04x", c.ConnectionState().Version, c.ConnectionState().CipherSuite)
+	vc.checkCertInfo(c.ConnectionState())
 
 	id, err := t.Cmd("EHLO %s", vc.hostname)
 	t.StartResponse(id)
@@ -265,4 +267,11 @@ func (vc validationContext) tryTLSOnConn(conn net.Conn, tlsConfig *tls.Config) {
 	_, err = t.ReadLine()
 
 	t.Close()
+}
+
+func (vc validationContext) checkCertInfo(cs tls.ConnectionState) {
+	if !opts.showCertInfo {
+		return
+	}
+	vc.Messagef("TLS session: version=%04x ciphersuite=%04x", cs.Version, cs.CipherSuite)
 }

@@ -9,7 +9,9 @@ package main
 import (
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 )
 
 func peerCertificateVerifierFor(vc validationContext) func([][]byte, [][]*x509.Certificate) error {
@@ -52,6 +54,7 @@ func peerCertificateVerifier(
 			err := tlsa.Verify(eeCert)
 			if err == nil {
 				vc.Successf("TLSA DANE-EE(3) match: %s", TLSAShortString(tlsa))
+				vc.showCertChainInfo(eeCert)
 				seenMatch = true
 			}
 
@@ -61,6 +64,7 @@ func peerCertificateVerifier(
 				if err == nil {
 					if vc.chainValid(eeCert, cert, caCerts, i) {
 						vc.Successf("TLSA DANE-TA(2) match against chain position %d: %s", i+2, TLSAShortString(tlsa))
+						vc.showCertChainInfo(eeCert, caCerts[:i+1]...)
 						seenMatch = true
 						// if a self-signed cert appears multiple times, report that; don't abort
 					} else {
@@ -115,4 +119,33 @@ func (vc validationContext) chainValid(eeCert, anchorCert *x509.Certificate, caC
 	}
 
 	return returnStatus
+}
+
+func (vc validationContext) showCertChainInfo(cert1 *x509.Certificate, certs ...*x509.Certificate) {
+	certPtrList := make([]*x509.Certificate, 1, 1+len(certs))
+	certPtrList[0] = cert1
+	certPtrList = append(certPtrList, certs...)
+
+	// FIXME: expiration warning goes here
+
+	if !opts.showCertInfo {
+		return
+	}
+
+	// certPtrList[ci].PublicKeyAlgorithm has no .String(), alas
+
+	const LinesPerCert = 4
+	lines := make([]string, len(certPtrList)*LinesPerCert)
+	for ci := range certPtrList {
+		lines[ci*LinesPerCert+0] = fmt.Sprintf("  [%d] CN=%s",
+			ci+1, strconv.QuoteToGraphic(certPtrList[ci].Subject.CommonName))
+		lines[ci*LinesPerCert+1] = fmt.Sprintf("\tSAN: %v %v",
+			certPtrList[ci].DNSNames, certPtrList[ci].IPAddresses)
+		lines[ci*LinesPerCert+2] = fmt.Sprintf("\tValid: %v - %v",
+			certPtrList[ci].NotBefore, certPtrList[ci].NotAfter)
+		lines[ci*LinesPerCert+3] = fmt.Sprintf("\tSerial=%v SignedWith: %v",
+			certPtrList[ci].SerialNumber, certPtrList[ci].SignatureAlgorithm)
+	}
+
+	vc.Messagef("Certificate chain of %d certs:\n%s", len(certPtrList), strings.Join(lines, "\n"))
 }

@@ -32,6 +32,7 @@ var opts struct {
 	connectTimeout   time.Duration
 	onlyIPv4         bool
 	onlyIPv6         bool
+	showCertInfo     bool
 }
 
 type programStatus struct {
