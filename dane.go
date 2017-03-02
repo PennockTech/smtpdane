@@ -15,18 +15,39 @@ import (
 	"time"
 )
 
-func peerCertificateVerifierFor(vc validationContext) func([][]byte, [][]*x509.Certificate) error {
-	return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-		return peerCertificateVerifier(vc, rawCerts, verifiedChains)
+type certDetails struct {
+	eeCert     *x509.Certificate
+	validChain []*x509.Certificate
+}
+
+func peerCertificateVerifierFor(vc *validationContext) (
+	func([][]byte, [][]*x509.Certificate) error,
+	<-chan certDetails,
+) {
+	// This has the potential to deadlock, because we write to the channel while
+	// verifying TLS but don't read from it until after TLS is established, and
+	// while we could set up an extra go-routine to avoid that, in practice I
+	// think we'll be fine for now just making it sufficiently buffered.
+	// There's usually one or two chains total, and we only write _verified_ chain details.
+	// 64 won't protect us against abusive servers, but should be sane for everything else.
+	// FIXME: consider absorbing results in a separate go-routine spun up
+	// before TLS to be proof against even the most abusive servers too.
+	ch := make(chan certDetails, 64)
+
+	f := func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		return peerCertificateVerifier(vc, ch, rawCerts, verifiedChains)
 	}
+
+	return f, ch
 }
 
 // A curried version of this is put in the tls.Config.VerifyPeerCertificate field (Go 1.8+)
 // and is responsible for TLS verification, replacing the normal PKIX logic.
 func peerCertificateVerifier(
-	vc validationContext,
+	vc *validationContext, chCertDetails chan<- certDetails,
 	rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 	// because tls.Config set InsecureSkipVerify the verifiedChains field will be nil
+	defer close(chCertDetails)
 
 	// rawCerts to certs logic ripped straight from crypto/tls
 	certs := make([]*x509.Certificate, len(rawCerts))
@@ -57,6 +78,7 @@ func peerCertificateVerifier(
 				vc.Successf("TLSA DANE-EE(3) match: %s", TLSAShortString(tlsa))
 				vc.showCertChainInfo(eeCert)
 				seenMatch = true
+				chCertDetails <- certDetails{eeCert: eeCert}
 			}
 
 		case 2: // DANE-TA per RFC7218
@@ -67,6 +89,7 @@ func peerCertificateVerifier(
 						vc.Successf("TLSA DANE-TA(2) match against chain position %d: %s", i+2, TLSAShortString(tlsa))
 						vc.showCertChainInfo(eeCert, caCerts[:i+1]...)
 						seenMatch = true
+						chCertDetails <- certDetails{eeCert: eeCert, validChain: caCerts[:i+1]}
 						// if a self-signed cert appears multiple times, report that; don't abort
 					} else {
 						vc.Errorf("TLSA DANE(2) match against UNCHAINED cert, position %d: %s", i+2, TLSAShortString(tlsa))
@@ -83,7 +106,7 @@ func peerCertificateVerifier(
 	return errors.New("danetls: no trust anchors matched certificate chain")
 }
 
-func (vc validationContext) chainValid(eeCert, anchorCert *x509.Certificate, caCerts []*x509.Certificate, caIndex int) bool {
+func (vc *validationContext) chainValid(eeCert, anchorCert *x509.Certificate, caCerts []*x509.Certificate, caIndex int) bool {
 	opts := x509.VerifyOptions{
 		Roots:         x509.NewCertPool(),
 		CurrentTime:   vc.time,
@@ -122,7 +145,7 @@ func (vc validationContext) chainValid(eeCert, anchorCert *x509.Certificate, caC
 	return returnStatus
 }
 
-func (vc validationContext) showCertChainInfo(cert1 *x509.Certificate, certs ...*x509.Certificate) {
+func (vc *validationContext) showCertChainInfo(cert1 *x509.Certificate, certs ...*x509.Certificate) {
 	certPtrList := make([]*x509.Certificate, 1, 1+len(certs))
 	certPtrList[0] = cert1
 	certPtrList = append(certPtrList, certs...)

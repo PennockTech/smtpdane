@@ -162,6 +162,8 @@ Use `-expiration-warning 0s` to disable this check entirely; use
 `-expiration-warning 1ns` to shift the warning to be enabled (1 nanosecond
 before the real time).
 
+OCSP status is only reported if `-show-cert-info` is passed.
+
 
 [RFC7672]: https://tools.ietf.org/html/rfc7672
            "SMTP Security via Opportunistic DNS-Based Authentication of Named Entities (DANE) Transport Layer Security (TLS)"

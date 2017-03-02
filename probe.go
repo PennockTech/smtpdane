@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/ocsp"
+
 	"go.pennock.tech/smtpdane/internal/errorlist"
 )
 
@@ -29,16 +31,16 @@ type validationContext struct {
 	time     time.Time
 }
 
-func (vc validationContext) Messagef(spec string, params ...interface{}) {
+func (vc *validationContext) Messagef(spec string, params ...interface{}) {
 	vc.status.Message(fmt.Sprintf("[%s %v] ", vc.hostname, vc.ip) + fmt.Sprintf(spec, params...))
 }
 
-func (vc validationContext) Errorf(spec string, params ...interface{}) {
+func (vc *validationContext) Errorf(spec string, params ...interface{}) {
 	vc.Messagef(ColorRed(spec), params...)
 	vc.status.AddErr()
 }
 
-func (vc validationContext) Successf(spec string, params ...interface{}) {
+func (vc *validationContext) Successf(spec string, params ...interface{}) {
 	vc.Messagef(ColorGreen(spec), params...)
 }
 
@@ -139,7 +141,7 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 			continue
 		}
 		status.probing.Add(1)
-		go validationContext{
+		go (&validationContext{
 			tlsaSet:  tlsaSet,
 			hostname: hostname,
 			altNames: altNames,
@@ -147,11 +149,11 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 			port:     port,
 			status:   status,
 			time:     time.Now(),
-		}.probeAddr()
+		}).probeAddr()
 	}
 }
 
-func (vc validationContext) probeAddr() {
+func (vc *validationContext) probeAddr() {
 	defer vc.status.probing.Done()
 
 	// DialTCP takes the vc.ip/vc.port sensibly, but the moment we want timeout
@@ -177,15 +179,16 @@ func (vc validationContext) probeAddr() {
 	vc.probeConnectedAddr(conn)
 }
 
-func (vc validationContext) probeConnectedAddr(conn net.Conn) {
+func (vc *validationContext) probeConnectedAddr(conn net.Conn) {
+	verifier, chCertDetails := peerCertificateVerifierFor(vc)
 	tlsConfig := &tls.Config{
 		ServerName:            vc.hostname,
 		InsecureSkipVerify:    true, // we verify ourselves in the VerifyPeerCertificate
-		VerifyPeerCertificate: peerCertificateVerifierFor(vc),
+		VerifyPeerCertificate: verifier,
 	}
 
 	if opts.tlsOnConnect {
-		vc.tryTLSOnConn(conn, tlsConfig)
+		vc.tryTLSOnConn(conn, tlsConfig, chCertDetails)
 		return
 	}
 
@@ -222,7 +225,7 @@ func (vc validationContext) probeConnectedAddr(conn net.Conn) {
 	}
 	if opts.showCertInfo {
 		if tlsState, ok := s.TLSConnectionState(); ok {
-			vc.checkCertInfo(tlsState)
+			vc.checkCertInfo(tlsState, chCertDetails)
 		}
 	}
 	err = s.Quit()
@@ -232,7 +235,7 @@ func (vc validationContext) probeConnectedAddr(conn net.Conn) {
 	return
 }
 
-func (vc validationContext) tryTLSOnConn(conn net.Conn, tlsConfig *tls.Config) {
+func (vc *validationContext) tryTLSOnConn(conn net.Conn, tlsConfig *tls.Config, chCertDetails <-chan certDetails) {
 	vc.Messagef("starting TLS immediately")
 	c := tls.Client(conn, tlsConfig)
 	t := textproto.NewConn(c)
@@ -244,7 +247,7 @@ func (vc validationContext) tryTLSOnConn(conn net.Conn, tlsConfig *tls.Config) {
 		return
 	}
 
-	vc.checkCertInfo(c.ConnectionState())
+	vc.checkCertInfo(c.ConnectionState(), chCertDetails)
 
 	id, err := t.Cmd("EHLO %s", vc.hostname)
 	t.StartResponse(id)
@@ -269,9 +272,44 @@ func (vc validationContext) tryTLSOnConn(conn net.Conn, tlsConfig *tls.Config) {
 	t.Close()
 }
 
-func (vc validationContext) checkCertInfo(cs tls.ConnectionState) {
+func (vc *validationContext) checkCertInfo(cs tls.ConnectionState, chCertDetails <-chan certDetails) {
 	if !opts.showCertInfo {
 		return
 	}
-	vc.Messagef("TLS session: version=%04x ciphersuite=%04x", cs.Version, cs.CipherSuite)
+	haveOCSP := cs.OCSPResponse != nil && len(cs.OCSPResponse) > 0
+
+	vc.Messagef("TLS session: version=%04x ciphersuite=%04x ocsp=%v", cs.Version, cs.CipherSuite, haveOCSP)
+
+	if !haveOCSP {
+		return
+	}
+	count := 0
+	for cd := range chCertDetails {
+		count += 1
+		if cd.validChain == nil || len(cd.validChain) < 1 {
+			vc.Messagef("  OCSP: not validating for chainless %s", strconv.QuoteToGraphic(cd.eeCert.Subject.CommonName))
+			continue
+		}
+		r, err := ocsp.ParseResponseForCert(cs.OCSPResponse, cd.eeCert, cd.validChain[0])
+		if err != nil {
+			vc.Errorf("  OCSP: response invalid for %s from %s:\n        %s",
+				cd.eeCert.Subject.CommonName,
+				cd.validChain[0].Subject.CommonName,
+				err)
+			continue
+		}
+
+		switch st := ocsp.ResponseStatus(r.Status); st {
+		case ocsp.Success:
+			vc.Messagef("  OCSP: status=%s sn=%v producedAt=(%s) thisUpdate=(%s) nextUpdate=(%s)",
+				st, r.SerialNumber, r.ProducedAt, r.ThisUpdate, r.NextUpdate)
+		case ocsp.TryLater:
+			vc.Messagef("  OCSP: status=%s", st)
+		default:
+			vc.Errorf("  OCSP: status=%s RevokedAt=(%s)", st, r.RevokedAt)
+		}
+	}
+	if count == 0 {
+		vc.Errorf("Saw OCSP response but got no chain information out of validation")
+	}
 }
