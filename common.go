@@ -34,6 +34,7 @@ var opts struct {
 	onlyIPv6          bool
 	showCertInfo      bool
 	expirationWarning time.Duration
+	expectOCSP        bool
 }
 
 type programStatus struct {

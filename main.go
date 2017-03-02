@@ -35,6 +35,7 @@ func init() {
 	flag.BoolVar(&opts.noCertNames, "nocertnames", false, "inhibit loading certs to name TLSA records")
 	flag.BoolVar(&opts.showCertInfo, "show-cert-info", false, "show information about certs")
 	flag.DurationVar(&opts.expirationWarning, "expiration-warning", 168*time.Hour, "error if cert in chain this close to expiring")
+	flag.BoolVar(&opts.expectOCSP, "expect-ocsp", false, "treat missing OCSP as an error")
 
 	flag.BoolVar(&opts.mxLookup, "mx", false, "arguments are domains, lookup MX records")
 	flag.BoolVar(&opts.submissionLookup, "submission", false, "arguments are domains, lookup submission SRV records")

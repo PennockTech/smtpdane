@@ -148,6 +148,9 @@ smtpdane -show-cert-info -mx example.org
 # maxes out in units of hours, so extend in shell;
 # 3 months of 31 days each, 24 hours per day, don't forget 'h' unit
 smtpdane -expiration-warning $((3*31*24))h -mx example.org
+
+# Turn missing OCSP stapling information into an error
+smtpdane -expect-ocsp -mx example.org
 ```
 
 Note that the `-aka` names are added to the list of "acceptable" names; you'll
@@ -162,7 +165,11 @@ Use `-expiration-warning 0s` to disable this check entirely; use
 `-expiration-warning 1ns` to shift the warning to be enabled (1 nanosecond
 before the real time).
 
-OCSP status is only reported if `-show-cert-info` is passed.
+OCSP status is only reported if either `-show-cert-info` or
+`-expect-ocsp` is passed.  The latter will cause missing OCSP information to
+be treated as an error, and present/good OCSP information to be shown in
+green.  Note that a `TryLater` response-code is not treated as an error (but
+may be in future, if good evidence is presented to suggest that it should be).
 
 
 [RFC7672]: https://tools.ietf.org/html/rfc7672

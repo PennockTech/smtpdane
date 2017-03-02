@@ -223,10 +223,8 @@ func (vc *validationContext) probeConnectedAddr(conn net.Conn) {
 	if err != nil {
 		vc.Errorf("STARTTLS failed: %s", err)
 	}
-	if opts.showCertInfo {
-		if tlsState, ok := s.TLSConnectionState(); ok {
-			vc.checkCertInfo(tlsState, chCertDetails)
-		}
+	if tlsState, ok := s.TLSConnectionState(); ok {
+		vc.checkCertInfo(tlsState, chCertDetails)
 	}
 	err = s.Quit()
 	if err != nil {
@@ -273,14 +271,19 @@ func (vc *validationContext) tryTLSOnConn(conn net.Conn, tlsConfig *tls.Config, 
 }
 
 func (vc *validationContext) checkCertInfo(cs tls.ConnectionState, chCertDetails <-chan certDetails) {
-	if !opts.showCertInfo {
+	if !opts.showCertInfo && !opts.expectOCSP {
 		return
 	}
 	haveOCSP := cs.OCSPResponse != nil && len(cs.OCSPResponse) > 0
 
-	vc.Messagef("TLS session: version=%04x ciphersuite=%04x ocsp=%v", cs.Version, cs.CipherSuite, haveOCSP)
+	if opts.showCertInfo {
+		vc.Messagef("TLS session: version=%04x ciphersuite=%04x ocsp=%v", cs.Version, cs.CipherSuite, haveOCSP)
+	}
 
 	if !haveOCSP {
+		if opts.expectOCSP {
+			vc.Errorf("missing OCSP response")
+		}
 		return
 	}
 	count := 0
@@ -301,8 +304,14 @@ func (vc *validationContext) checkCertInfo(cs tls.ConnectionState, chCertDetails
 
 		switch st := ocsp.ResponseStatus(r.Status); st {
 		case ocsp.Success:
-			vc.Messagef("  OCSP: status=%s sn=%v producedAt=(%s) thisUpdate=(%s) nextUpdate=(%s)",
-				st, r.SerialNumber, r.ProducedAt, r.ThisUpdate, r.NextUpdate)
+			tmpl := "OCSP: status=%s sn=%v producedAt=(%s) thisUpdate=(%s) nextUpdate=(%s)"
+			if opts.showCertInfo {
+				tmpl = "  " + tmpl
+			}
+			if opts.expectOCSP {
+				tmpl = ColorGreen(tmpl)
+			}
+			vc.Messagef(tmpl, st, r.SerialNumber, r.ProducedAt, r.ThisUpdate, r.NextUpdate)
 		case ocsp.TryLater:
 			vc.Messagef("  OCSP: status=%s", st)
 		default:
