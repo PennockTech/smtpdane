@@ -16,6 +16,15 @@ import (
 	"strings"
 	"time"
 
+	// Hash algorithms to be available for validation; any not in stdlib
+	// should be optional and not here, but in a build-tag-constrainted file
+	// which just does the import so that crypto.RegisterHash() is called.
+	// Those needed for TLS:
+	//   <https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-18>
+	// (so no others pulled in yet)
+	_ "crypto/sha256"
+	_ "crypto/sha512"
+
 	"golang.org/x/crypto/ocsp"
 
 	"go.pennock.tech/smtpdane/internal/errorlist"
