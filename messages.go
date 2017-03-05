@@ -112,7 +112,11 @@ func batchedEmitMessages(src <-chan string, this, sink *programStatus) {
 		if !ok {
 			break
 		}
-		batch = append(batch, msg)
+		if opts.debugFast {
+			sink.Message(msg)
+		} else {
+			batch = append(batch, msg)
+		}
 	}
 	// closed, so BatchFinished, so we _and_ our children are finished.
 

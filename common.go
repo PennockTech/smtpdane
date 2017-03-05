@@ -18,25 +18,26 @@ import (
 )
 
 var opts struct {
-	defaultPort       string
-	defaultPortInt    int
-	tlsOnConnect      bool
-	showVersion       bool
-	heloName          string
-	mxLookup          bool
-	submissionLookup  bool
-	srvTCPLookup      string
-	noColor           bool
-	noCertNames       bool
 	akaNames          akaHostList
 	connectTimeout    time.Duration
+	debug             bool
+	debugFast         bool
+	defaultPort       string
+	defaultPortInt    int
+	expectOCSP        bool
+	expirationWarning time.Duration
+	heloName          string
+	mxLookup          bool
+	noCertNames       bool
+	noColor           bool
 	onlyIPv4          bool
 	onlyIPv6          bool
-	showCertInfo      bool
-	expirationWarning time.Duration
-	expectOCSP        bool
 	quiet             bool
-	debug             bool
+	showCertInfo      bool
+	showVersion       bool
+	srvTCPLookup      string
+	submissionLookup  bool
+	tlsOnConnect      bool
 }
 
 type programStatus struct {
