@@ -170,19 +170,22 @@ Note that the `-aka` names are added to the list of "acceptable" names; you'll
 see each success/failure if you pay attention to the output, but as long as
 _one_ name succeeds, the probe of that `host:ip` will be deemed a success.
 
-An expiring-soon cert counts as an error (thus causing command exit with
-non-zero status) once we're within the `-expiration-warning` duration of the
-expiration timestamp (`NotAfter` time) of _any_ certificate in the chain; each
-certificate must be valid.  A normal TLS client only checks the current time.
-Use `-expiration-warning 0s` to disable this check entirely; use
-`-expiration-warning 1ns` to shift the warning to be enabled (1 nanosecond
-before the real time).
+The expiration time of _all_ certificates in the validated chain is checked
+for validity, unless `-expiration-warning 0s` is passed.
+This examines the `NotAfter` time.  `NotBefore` is ignored.
+Only the validated chains are examined, so multiple-chain presentations
+require more care to check each thoroughly (suggestions welcome).
+While a normal TLS client only checks the current time, smtpdane checks two
+times: it checks for outright expired certificates, treating those as errors,
+and it checks for "expiring soon" certificates, treating those as warnings.
+To effectively only check for outright expiry, use `-expiration-warning 1ns`
+to shift the warning to be enabled with a 1 nanosecond warning period; this
+leaves warnings as technically possible, albeit somewhat unlikely.
 
 OCSP status is only reported if either `-show-cert-info` or
 `-expect-ocsp` is passed.  The latter will cause missing OCSP information to
 be treated as an error, and present/good OCSP information to be shown in
-green.  Note that a `TryLater` response-code is not treated as an error (but
-may be in future, if good evidence is presented to suggest that it should be).
+green.  Note that a `TryLater` response-code is treated as a warning.
 
 
 [RFC7672]: https://tools.ietf.org/html/rfc7672

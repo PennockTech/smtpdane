@@ -352,7 +352,7 @@ func (vc *validationContext) checkCertInfo(cs tls.ConnectionState, chCertDetails
 			}
 			vc.Messagef(tmpl, st, r.SerialNumber, r.ProducedAt, r.ThisUpdate, r.NextUpdate)
 		case ocsp.TryLater:
-			vc.Messagef("  OCSP: status=%s", st)
+			vc.Warnf("  OCSP: status=%s", st)
 		default:
 			vc.Errorf("  OCSP: status=%s RevokedAt=(%s)", st, r.RevokedAt)
 		}
