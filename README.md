@@ -115,6 +115,15 @@ otherwise-optional square-brackets, thus `[2001:db8::25]:1234`.
 By default, the `EHLO` command will supply a hostname of `smtpdane.invalid`;
 use the `-helo` flag to override that value.
 
+Use `-quiet` (or `-q`) to not emit any messages unless there's a failure.  
+Use `-terse` to shorten the amount of output text.  
+Use `-nagios` to use Nagios exit codes (and be `-terse` & `-nocolor`).
+
+The `-quiet` approach is suitable for cron jobs which should only emit when
+there's a problem.  The `-nagios` approach is better for less ad-hoc
+monitoring.  We're open to supporting other output formats for other
+monitoring systems.
+
 ### Examples
 
 ```sh
@@ -151,6 +160,10 @@ smtpdane -expiration-warning $((3*31*24))h -mx example.org
 
 # Turn missing OCSP stapling information into an error
 smtpdane -expect-ocsp -mx example.org
+
+# Be invoked for Nagios monitoring, with terse output, no color codes,
+# avoiding stderr, but checking for OCSP (& DANE) on all MX servers
+smtpdane -nagios -expect-ocsp -mx spodhuis.org
 ```
 
 Note that the `-aka` names are added to the list of "acceptable" names; you'll
