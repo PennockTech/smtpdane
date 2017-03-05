@@ -66,16 +66,16 @@ func probeMX(domainSpec string, status *programStatus) {
 // We allow ports on domains; we still lookup SRV records, but override the
 // port therein with the supplied port.
 func probeSRV(srvName, domainSpec string, status *programStatus) {
-	defer status.BatchFinished()
-
 	domain, port, err := HostnameMaybePortFrom(domainSpec)
 	if err != nil {
 		status.Errorf("error parsing %q: %s", domainSpec, err)
+		status.probing.Done()
 		return
 	}
 
 	lookup := fmt.Sprintf("_%s._tcp.%s", srvName, domain)
 	status = status.ChildBatcher("probeSRV", lookup)
+	defer status.BatchFinished()
 
 	srvList, err := ResolveSRV(lookup)
 	if err != nil {
