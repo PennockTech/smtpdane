@@ -34,6 +34,14 @@ func emitOutputMessages(messages <-chan string, shuttingDown *sync.WaitGroup) {
 	shuttingDown.Done()
 }
 
+func (s *programStatus) AddErr() {
+	_ = atomic.AddUint32(&s.errorCount, 1)
+}
+
+func (s *programStatus) AddWarning() {
+	_ = atomic.AddUint32(&s.warningCount, 1)
+}
+
 func (s *programStatus) Messagef(spec string, args ...interface{}) {
 	s.Message(fmt.Sprintf(spec, args...))
 }
@@ -63,8 +71,13 @@ func (s *programStatus) Errorf(spec string, args ...interface{}) {
 	s.Error(fmt.Sprintf(spec, args...))
 }
 
-func (s *programStatus) AddErr() {
-	_ = atomic.AddUint32(&s.errorCount, 1)
+func (s *programStatus) Warn(msg string) {
+	s.Message(ColorRed(msg))
+	s.AddWarning()
+}
+
+func (s *programStatus) Warnf(spec string, args ...interface{}) {
+	s.Error(fmt.Sprintf(spec, args...))
 }
 
 func (s *programStatus) Successf(spec string, args ...interface{}) {
@@ -141,6 +154,7 @@ func batchedEmitMessages(src <-chan string, this, sink *programStatus) {
 		// We could just use .AddErr() but we want an accurate count preserved.
 		_ = atomic.AddUint32(&sink.errorCount, atomic.LoadUint32(&this.errorCount))
 	}
+	_ = atomic.AddUint32(&sink.warningCount, atomic.LoadUint32(&this.warningCount))
 	if errored || !opts.quiet {
 		for i := range batch {
 			sink.Message(batch[i])

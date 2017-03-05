@@ -91,6 +91,7 @@ func main() {
 	flag.Parse()
 
 	exitBadFlags := 1
+	exitServerWarnings := 1
 	exitServerErrors := 1
 	exitOK := 0
 	errOutStream := os.Stderr
@@ -100,6 +101,7 @@ func main() {
 		opts.noColor = true
 		exitBadFlags = 3
 		exitServerErrors = 2
+		exitServerWarnings = 1
 		errOutStream = os.Stdout
 	}
 
@@ -172,6 +174,13 @@ func main() {
 
 	if status.errorCount != 0 {
 		fmt.Fprintf(errOutStream, "%s: encountered %d errors\n", os.Args[0], status.errorCount)
+	}
+	if status.warningCount != 0 {
+		fmt.Fprintf(errOutStream, "%s: encountered %d warnings\n", os.Args[0], status.warningCount)
+	}
+	if status.warningCount != 0 && status.errorCount == 0 {
+		os.Exit(exitServerWarnings)
+	} else if status.errorCount != 0 {
 		os.Exit(exitServerErrors)
 	}
 

@@ -47,6 +47,7 @@ type programStatus struct {
 	shuttingDown  *sync.WaitGroup
 	batchChildren *sync.WaitGroup
 	errorCount    uint32 // must only access via sync/atomic while go-routines running
+	warningCount  uint32
 	output        chan<- string
 	label         string
 }

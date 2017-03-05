@@ -156,10 +156,14 @@ func (vc *validationContext) showCertChainInfo(cert1 *x509.Certificate, certs ..
 	certPtrList = append(certPtrList, certs...)
 
 	if opts.expirationWarning != 0 {
-		minReqTime := time.Now().Add(opts.expirationWarning)
+		now := time.Now()
+		minReqTime := now.Add(opts.expirationWarning)
 		for i, c := range certPtrList {
-			if c.NotAfter.Before(minReqTime) {
-				vc.Errorf("Cert %d EXPIRING SOON: within %v of %v for cert %s",
+			if c.NotAfter.Before(now) {
+				vc.Errorf("Cert %d EXPIRED: after %v for cert %s",
+					i, c.NotAfter, strconv.QuoteToGraphic(c.Subject.CommonName))
+			} else if c.NotAfter.Before(minReqTime) {
+				vc.Warnf("Cert %d EXPIRING SOON: within %v of %v for cert %s",
 					i, opts.expirationWarning, c.NotAfter, strconv.QuoteToGraphic(c.Subject.CommonName))
 			}
 		}
