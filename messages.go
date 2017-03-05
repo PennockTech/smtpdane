@@ -72,7 +72,7 @@ func (s *programStatus) Errorf(spec string, args ...interface{}) {
 }
 
 func (s *programStatus) Warn(msg string) {
-	s.Message(ColorRed(msg))
+	s.Message(ColorYellow(msg))
 	s.AddWarning()
 }
 

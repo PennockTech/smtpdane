@@ -51,7 +51,7 @@ func (vc *validationContext) Wafflef(spec string, params ...interface{}) {
 }
 
 func (vc *validationContext) Warnf(spec string, params ...interface{}) {
-	vc.Messagef(ColorRed(spec), params...)
+	vc.Messagef(ColorYellow(spec), params...)
 	vc.status.AddWarning()
 }
 

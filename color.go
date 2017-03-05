@@ -21,3 +21,12 @@ func ColorGreen(msg string) string {
 	}
 	return "\x1B[1;32m" + msg + "\x1B[0m"
 }
+
+// ColorYellow wraps text in ANSI color sequences for bold yellow,
+// unless -color was given
+func ColorYellow(msg string) string {
+	if opts.noColor {
+		return msg
+	}
+	return "\x1B[1;33m" + msg + "\x1B[0m"
+}
