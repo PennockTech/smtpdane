@@ -26,6 +26,8 @@ import (
 
 func init() {
 	flag.BoolVar(&opts.showVersion, "version", false, "show version and exit")
+	flag.BoolVar(&opts.quiet, "quiet", false, "be quiet unless there's a failure")
+	flag.BoolVar(&opts.debug, "debug", false, "show debugging output; may be unpretty")
 	flag.BoolVar(&opts.noColor, "nocolor", false, "inhibit color output")
 	flag.StringVar(&opts.defaultPort, "port", "smtp(25)", "port to connect to")
 	flag.BoolVar(&opts.tlsOnConnect, "tls-on-connect", false, "start TLS immediately upon connection")
@@ -37,12 +39,18 @@ func init() {
 	flag.DurationVar(&opts.expirationWarning, "expiration-warning", 168*time.Hour, "error if cert in chain this close to expiring")
 	flag.BoolVar(&opts.expectOCSP, "expect-ocsp", false, "treat missing OCSP as an error")
 
+	// Mutually exclusive groups
+
 	flag.BoolVar(&opts.mxLookup, "mx", false, "arguments are domains, lookup MX records")
 	flag.BoolVar(&opts.submissionLookup, "submission", false, "arguments are domains, lookup submission SRV records")
 	flag.StringVar(&opts.srvTCPLookup, "srv", "", "arguments are domains, lookup this TCP SRV record")
 
 	flag.BoolVar(&opts.onlyIPv4, "4", false, "only probe IPv4 addresses")
 	flag.BoolVar(&opts.onlyIPv6, "6", false, "only probe IPv6 addresses")
+
+	// Aliases
+	flag.BoolVar(&opts.quiet, "q", false, "be quiet unless there's a failure")
+	flag.StringVar(&opts.defaultPort, "p", "smtp(25)", "port to connect to")
 }
 
 func checkFlagsForConflicting() bool {
@@ -98,8 +106,10 @@ func main() {
 	go emitOutputMessages(messages, shuttingDown)
 
 	status := &programStatus{
-		probing: &sync.WaitGroup{},
-		output:  messages,
+		probing:       &sync.WaitGroup{},
+		batchChildren: &sync.WaitGroup{},
+		shuttingDown:  shuttingDown,
+		output:        messages,
 	}
 
 	for _, hostSpec := range hostlist {
@@ -111,13 +121,23 @@ func main() {
 		} else if opts.srvTCPLookup != "" {
 			go probeSRV(opts.srvTCPLookup, hostSpec, status)
 		} else {
-			go probeHost(hostSpec, status)
+			status.probing.Done() // the ..Go wrapper bumps it again
+			probeHostGo(hostSpec, status)
 		}
 	}
 
+	debugf("main: waiting for probing to finish\n")
 	status.probing.Wait()
+	debugf("main: shutting down\n")
 	shuttingDown.Add(1)
-	close(messages)
+
+	// Every other user of BatchFinished wants it to decr probing too (else
+	// every other caller did an anon func for defer, doing a probing.Done()
+	// and then BatchFinished) so I moved a probing.Done() in there and
+	// simplified the defers.  Price: we need to re-bump probing here.
+	status.probing.Add(1)
+	status.BatchFinished()
+
 	shuttingDown.Wait()
 
 	if status.errorCount != 0 {

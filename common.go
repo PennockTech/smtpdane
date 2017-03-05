@@ -35,12 +35,17 @@ var opts struct {
 	showCertInfo      bool
 	expirationWarning time.Duration
 	expectOCSP        bool
+	quiet             bool
+	debug             bool
 }
 
 type programStatus struct {
-	probing    *sync.WaitGroup
-	errorCount uint32 // only access via sync/atomic while go-routines running
-	output     chan<- string
+	probing       *sync.WaitGroup
+	shuttingDown  *sync.WaitGroup
+	batchChildren *sync.WaitGroup
+	errorCount    uint32 // must only access via sync/atomic while go-routines running
+	output        chan<- string
+	label         string
 }
 
 type akaHostList []string

@@ -21,7 +21,8 @@ import (
 // We allow ports on domains; we still lookup MX records, but override port 25
 // with the supplied port.
 func probeMX(domainSpec string, status *programStatus) {
-	defer status.probing.Done()
+	status = status.ChildBatcher("probeMX", domainSpec)
+	defer status.BatchFinished()
 
 	domain, port, err := HostnameMaybePortFrom(domainSpec)
 	if err != nil {
@@ -54,8 +55,7 @@ func probeMX(domainSpec string, status *programStatus) {
 		if port != "" {
 			hn = net.JoinHostPort(hn, port)
 		}
-		status.probing.Add(1)
-		go probeHost(hn, status, domain)
+		probeHostGo(hn, status, domain)
 	}
 }
 
@@ -66,7 +66,7 @@ func probeMX(domainSpec string, status *programStatus) {
 // We allow ports on domains; we still lookup SRV records, but override the
 // port therein with the supplied port.
 func probeSRV(srvName, domainSpec string, status *programStatus) {
-	defer status.probing.Done()
+	defer status.BatchFinished()
 
 	domain, port, err := HostnameMaybePortFrom(domainSpec)
 	if err != nil {
@@ -75,6 +75,7 @@ func probeSRV(srvName, domainSpec string, status *programStatus) {
 	}
 
 	lookup := fmt.Sprintf("_%s._tcp.%s", srvName, domain)
+	status = status.ChildBatcher("probeSRV", lookup)
 
 	srvList, err := ResolveSRV(lookup)
 	if err != nil {
@@ -109,7 +110,6 @@ func probeSRV(srvName, domainSpec string, status *programStatus) {
 			continue
 		}
 		seen[hn] = struct{}{}
-		status.probing.Add(1)
-		go probeHost(hn, status, domain)
+		probeHostGo(hn, status, domain)
 	}
 }

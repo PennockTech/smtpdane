@@ -53,6 +53,13 @@ func (vc *validationContext) Successf(spec string, params ...interface{}) {
 	vc.Messagef(ColorGreen(spec), params...)
 }
 
+// ensure that the child status is created in the parent's go-routine
+func probeHostGo(hostSpec string, status *programStatus, otherValidNames ...string) {
+	status.probing.Add(1)
+	status = status.ChildBatcher("probeHost", hostSpec)
+	go probeHost(hostSpec, status, otherValidNames...)
+}
+
 // probeHost is the top-level function of a go-routine and is responsible for
 // probing one remote SMTP connection.
 //
@@ -60,7 +67,7 @@ func (vc *validationContext) Successf(spec string, params ...interface{}) {
 // are appended and each string is guaranteed to be emitted with no
 // interweaving of other results within the string.
 func probeHost(hostSpec string, status *programStatus, otherValidNames ...string) {
-	defer status.probing.Done()
+	defer status.BatchFinished()
 
 	hostname, port, err := HostnamePortFrom(hostSpec)
 	if err != nil {
@@ -149,8 +156,7 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 		if opts.onlyIPv6 && ip.To4() != nil {
 			continue
 		}
-		status.probing.Add(1)
-		go (&validationContext{
+		(&validationContext{
 			tlsaSet:  tlsaSet,
 			hostname: hostname,
 			altNames: altNames,
@@ -158,12 +164,21 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 			port:     port,
 			status:   status,
 			time:     time.Now(),
-		}).probeAddr()
+		}).probeAddrGo()
 	}
 }
 
+func (vc *validationContext) probeAddrGo() {
+	vc.status.probing.Add(1)
+	vc.status = vc.status.ChildBatcher("probeAddr", vc.ip.String())
+	go vc.probeAddr()
+}
+
 func (vc *validationContext) probeAddr() {
-	defer vc.status.probing.Done()
+	// Unfortunately we can't create the ChildBatcher here where it makes most
+	// sense, because it needs to be created before the parent calls
+	// BatchFinished and closes things on us because of a lack of children.
+	defer vc.status.BatchFinished()
 
 	// DialTCP takes the vc.ip/vc.port sensibly, but the moment we want timeout
 	// control, we need to go through a function which wants us to join them
