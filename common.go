@@ -26,6 +26,7 @@ var opts struct {
 	defaultPortInt    int
 	expectOCSP        bool
 	expirationWarning time.Duration
+	forNagios         bool
 	heloName          string
 	mxLookup          bool
 	noCertNames       bool
@@ -37,6 +38,7 @@ var opts struct {
 	showVersion       bool
 	srvTCPLookup      string
 	submissionLookup  bool
+	terse             bool
 	tlsOnConnect      bool
 }
 

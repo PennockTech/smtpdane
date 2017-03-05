@@ -42,6 +42,18 @@ func (s *programStatus) Message(msg string) {
 	s.output <- msg
 }
 
+func (s *programStatus) Waffle(msg string) {
+	if !opts.terse {
+		s.Message(msg)
+	}
+}
+
+func (s *programStatus) Wafflef(spec string, args ...interface{}) {
+	if !opts.terse {
+		s.Message(fmt.Sprintf(spec, args...))
+	}
+}
+
 func (s *programStatus) Error(msg string) {
 	s.Message(ColorRed(msg))
 	s.AddErr()

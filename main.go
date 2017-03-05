@@ -41,6 +41,9 @@ func init() {
 	flag.DurationVar(&opts.expirationWarning, "expiration-warning", 168*time.Hour, "error if cert in chain this close to expiring")
 	flag.BoolVar(&opts.expectOCSP, "expect-ocsp", false, "treat missing OCSP as an error")
 
+	flag.BoolVar(&opts.terse, "terse", false, "terse output")
+	flag.BoolVar(&opts.forNagios, "nagios", false, "format output as NAGIOS plugin")
+
 	// Mutually exclusive groups
 
 	flag.BoolVar(&opts.mxLookup, "mx", false, "arguments are domains, lookup MX records")
@@ -56,21 +59,26 @@ func init() {
 }
 
 func checkFlagsForConflicting() bool {
+	out := os.Stderr
+	if opts.forNagios {
+		out = os.Stdout
+	}
+
 	if opts.mxLookup && opts.submissionLookup {
-		fmt.Fprintf(os.Stderr, "%s: -mx and -submission conflict\n", os.Args[0])
+		fmt.Fprintf(out, "%s: -mx and -submission conflict\n", os.Args[0])
 		return true
 	}
 	if opts.mxLookup && opts.srvTCPLookup != "" {
-		fmt.Fprintf(os.Stderr, "%s: -mx and -srv SRV conflict\n", os.Args[0])
+		fmt.Fprintf(out, "%s: -mx and -srv SRV conflict\n", os.Args[0])
 		return true
 	}
 	if opts.submissionLookup && opts.srvTCPLookup != "" {
-		fmt.Fprintf(os.Stderr, "%s: -submission and -srv SRV conflict\n", os.Args[0])
+		fmt.Fprintf(out, "%s: -submission and -srv SRV conflict\n", os.Args[0])
 		return true
 	}
 
 	if opts.onlyIPv4 && opts.onlyIPv6 {
-		fmt.Fprintf(os.Stderr, "%s: -4 and -6 conflict\n", os.Args[0])
+		fmt.Fprintf(out, "%s: -4 and -6 conflict\n", os.Args[0])
 		return true
 	}
 
@@ -78,13 +86,33 @@ func checkFlagsForConflicting() bool {
 }
 
 func main() {
+	// We don't hard-code the Nagios exit codes, in case other systems want
+	// something different.
 	flag.Parse()
+
+	exitBadFlags := 1
+	exitServerErrors := 1
+	exitOK := 0
+	errOutStream := os.Stderr
+
+	if opts.forNagios {
+		opts.terse = true
+		opts.noColor = true
+		exitBadFlags = 3
+		exitServerErrors = 2
+		errOutStream = os.Stdout
+	}
+
 	if opts.showVersion {
 		version()
+		if opts.forNagios {
+			// strictly, incompatible; nagios takes precedence, we're not OK
+			os.Exit(exitBadFlags)
+		}
 		return
 	}
 	if checkFlagsForConflicting() {
-		os.Exit(1)
+		os.Exit(exitBadFlags)
 	}
 	if !opts.noCertNames {
 		initCertNames()
@@ -93,13 +121,13 @@ func main() {
 	hostlist := flag.Args()
 	if len(hostlist) == 0 {
 		flag.Usage()
-		os.Exit(1)
+		os.Exit(exitBadFlags)
 	}
 
 	dp, err := PortParse(opts.defaultPort)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: can't parse %q: %s\n", os.Args[0], opts.defaultPort, err)
-		os.Exit(1)
+		fmt.Fprintf(errOutStream, "%s: can't parse %q: %s\n", os.Args[0], opts.defaultPort, err)
+		os.Exit(exitBadFlags)
 	}
 	opts.defaultPortInt = dp
 
@@ -143,9 +171,9 @@ func main() {
 	shuttingDown.Wait()
 
 	if status.errorCount != 0 {
-		fmt.Fprintf(os.Stderr, "%s: encountered %d errors\n", os.Args[0], status.errorCount)
-		os.Exit(1)
+		fmt.Fprintf(errOutStream, "%s: encountered %d errors\n", os.Args[0], status.errorCount)
+		os.Exit(exitServerErrors)
 	}
 
-	os.Exit(0)
+	os.Exit(exitOK)
 }

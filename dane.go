@@ -107,16 +107,16 @@ func peerCertificateVerifier(
 }
 
 func (vc *validationContext) chainValid(eeCert, anchorCert *x509.Certificate, caCerts []*x509.Certificate, caIndex int) bool {
-	opts := x509.VerifyOptions{
+	vOpts := x509.VerifyOptions{
 		Roots:         x509.NewCertPool(),
 		CurrentTime:   vc.time,
 		Intermediates: x509.NewCertPool(),
 	}
 
 	for _, cert := range caCerts[:caIndex] {
-		opts.Intermediates.AddCert(cert)
+		vOpts.Intermediates.AddCert(cert)
 	}
-	opts.Roots.AddCert(anchorCert)
+	vOpts.Roots.AddCert(anchorCert)
 
 	candidateNames := make([]string, 1+len(vc.altNames))
 	candidateNames[0] = vc.hostname
@@ -127,10 +127,10 @@ func (vc *validationContext) chainValid(eeCert, anchorCert *x509.Certificate, ca
 	returnStatus := false
 
 	for _, tryHostname := range candidateNames {
-		opts.DNSName = tryHostname
-		chains, err := eeCert.Verify(opts)
+		vOpts.DNSName = tryHostname
+		chains, err := eeCert.Verify(vOpts)
 		if err != nil {
-			vc.Messagef("no valid TA chains for hostname %q", tryHostname)
+			vc.Wafflef("no valid TA chains for hostname %q", tryHostname)
 			continue
 		}
 
@@ -138,8 +138,13 @@ func (vc *validationContext) chainValid(eeCert, anchorCert *x509.Certificate, ca
 		for i := range chains[0] {
 			ids[i] = strconv.QuoteToGraphic(chains[0][i].Subject.CommonName)
 		}
-		vc.Messagef("%d chains to TA; first length %d, is: %v", len(chains), len(chains[0]), ids)
+		vc.Wafflef("%d chains to TA; first length %d, is: %v", len(chains), len(chains[0]), ids)
 		returnStatus = true
+	}
+
+	if opts.terse && !returnStatus {
+		// terse suppresses the waffle messages, still want _something_
+		vc.Messagef("no valid TA chains for %d hostnames: %v", len(candidateNames), candidateNames)
 	}
 
 	return returnStatus

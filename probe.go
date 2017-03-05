@@ -44,6 +44,12 @@ func (vc *validationContext) Messagef(spec string, params ...interface{}) {
 	vc.status.Message(fmt.Sprintf("[%s %v] ", vc.hostname, vc.ip) + fmt.Sprintf(spec, params...))
 }
 
+func (vc *validationContext) Wafflef(spec string, params ...interface{}) {
+	if !opts.terse {
+		vc.Messagef(spec, params...)
+	}
+}
+
 func (vc *validationContext) Errorf(spec string, params ...interface{}) {
 	vc.Messagef(ColorRed(spec), params...)
 	vc.status.AddErr()
@@ -79,7 +85,11 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 	if err != nil {
 		switch e := err.(type) {
 		case *errorlist.List:
-			status.Errorf("error resolving %q:\n%s", hostname, e.FmtIndented())
+			if opts.terse {
+				status.Errorf("error resolving %q: %s", hostname, e.FmtList())
+			} else {
+				status.Errorf("error resolving %q:\n%s", hostname, e.FmtIndented())
+			}
 		default:
 			status.Errorf("error resolving %q: %s", hostname, err)
 		}
@@ -87,13 +97,13 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 	}
 
 	if resolvedHostname == hostname {
-		status.Messagef("found %d addresses for %q: %v", len(ipList), hostname, ipList)
+		status.Wafflef("found %d addresses for %q: %v", len(ipList), hostname, ipList)
 	} else {
 		if opts.mxLookup {
 			// Being generous by not just deeming this an error; still, mark it red
 			status.Messagef(ColorRed("VIOLATION: MX hostname is a CNAME: %q -> %q"), hostname, resolvedHostname)
 		}
-		status.Messagef("found %d addresses for %q at %q: %v", len(ipList), hostname, resolvedHostname, ipList)
+		status.Wafflef("found %d addresses for %q at %q: %v", len(ipList), hostname, resolvedHostname, ipList)
 	}
 
 	// RFC 7671 section 7: chase CNAMEs (as long as secure) of Base Domain and
@@ -140,7 +150,7 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 			tlsaLines[i+1] = TLSAMediumString(tlsaSet.RRs[i])
 		}
 	}
-	status.Message(strings.Join(tlsaLines, "\n  "))
+	status.Waffle(strings.Join(tlsaLines, "\n  "))
 
 	var altNames []string = nil
 	if len(otherValidNames) > 0 || len(opts.akaNames) > 0 {
@@ -242,7 +252,7 @@ func (vc *validationContext) probeConnectedAddr(conn net.Conn) {
 		return
 	}
 
-	vc.Messagef("issuing STARTTLS")
+	vc.Wafflef("issuing STARTTLS")
 	err = s.StartTLS(tlsConfig)
 	if err != nil {
 		vc.Errorf("STARTTLS failed: %s", err)
