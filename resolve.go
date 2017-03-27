@@ -139,6 +139,9 @@ DNS_RRTYPE_LOOP:
 				}
 			}
 
+			if r == nil {
+				continue
+			}
 			if r.Rcode != dns.RcodeSuccess {
 				failure, known := dns.RcodeToString[r.Rcode]
 				if !known {
