@@ -332,8 +332,13 @@ func (vc *validationContext) checkCertInfo(cs tls.ConnectionState, chCertDetails
 			vc.Messagef("  OCSP: not validating for chainless %s", strconv.QuoteToGraphic(cd.eeCert.Subject.CommonName))
 			continue
 		}
-		r, err := ocsp.ParseResponseForCert(cs.OCSPResponse, cd.eeCert, cd.validChain[0])
+		liveStaple, err := ocsp.ParseResponseForCert(cs.OCSPResponse, cd.eeCert, cd.validChain[0])
 		if err != nil {
+			// We can try a coercion of err.(ocsp.ResponseError) and inspect,
+			// but while ocsp.TryLater is interesting for a response from an
+			// OCSP issuing service, in a staple served by a live TLS service,
+			// it's still an error.
+			// There's no error here which we want to treat "differently".
 			vc.Errorf("  OCSP: response invalid for %s from %s:\n        %s",
 				cd.eeCert.Subject.CommonName,
 				cd.validChain[0].Subject.CommonName,
@@ -341,20 +346,22 @@ func (vc *validationContext) checkCertInfo(cs tls.ConnectionState, chCertDetails
 			continue
 		}
 
-		switch st := ocsp.ResponseStatus(r.Status); st {
-		case ocsp.Success:
-			tmpl := "OCSP: status=%s sn=%v producedAt=(%s) thisUpdate=(%s) nextUpdate=(%s)"
+		switch liveStaple.Status {
+		case ocsp.Good:
+			tmpl := "OCSP: GOOD status=%s sn=%v producedAt=(%s) thisUpdate=(%s) nextUpdate=(%s)"
 			if opts.showCertInfo {
 				tmpl = "  " + tmpl
 			}
 			if opts.expectOCSP {
 				tmpl = ColorGreen(tmpl)
 			}
-			vc.Messagef(tmpl, st, r.SerialNumber, r.ProducedAt, r.ThisUpdate, r.NextUpdate)
-		case ocsp.TryLater:
-			vc.Warnf("  OCSP: status=%s", st)
+			vc.Messagef(tmpl,
+				liveStaple.Status, liveStaple.SerialNumber,
+				liveStaple.ProducedAt, liveStaple.ThisUpdate, liveStaple.NextUpdate)
+		case ocsp.Revoked:
+			vc.Errorf("  OCSP: REVOKED status=%s RevokedAt=(%s)", liveStaple.Status, liveStaple.RevokedAt)
 		default:
-			vc.Errorf("  OCSP: status=%s RevokedAt=(%s)", st, r.RevokedAt)
+			vc.Errorf("  OCSP: BAD status=%s sn=%v", liveStaple.Status, liveStaple.SerialNumber)
 		}
 	}
 	if count == 0 {
