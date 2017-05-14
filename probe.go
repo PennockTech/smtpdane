@@ -348,7 +348,7 @@ func (vc *validationContext) checkCertInfo(cs tls.ConnectionState, chCertDetails
 
 		switch liveStaple.Status {
 		case ocsp.Good:
-			tmpl := "OCSP: GOOD status=%s sn=%v producedAt=(%s) thisUpdate=(%s) nextUpdate=(%s)"
+			tmpl := "OCSP: GOOD status=%v sn=%v producedAt=(%s) thisUpdate=(%s) nextUpdate=(%s)"
 			if opts.showCertInfo {
 				tmpl = "  " + tmpl
 			}
@@ -359,9 +359,9 @@ func (vc *validationContext) checkCertInfo(cs tls.ConnectionState, chCertDetails
 				liveStaple.Status, liveStaple.SerialNumber,
 				liveStaple.ProducedAt, liveStaple.ThisUpdate, liveStaple.NextUpdate)
 		case ocsp.Revoked:
-			vc.Errorf("  OCSP: REVOKED status=%s RevokedAt=(%s)", liveStaple.Status, liveStaple.RevokedAt)
+			vc.Errorf("  OCSP: REVOKED status=%v RevokedAt=(%s)", liveStaple.Status, liveStaple.RevokedAt)
 		default:
-			vc.Errorf("  OCSP: BAD status=%s sn=%v", liveStaple.Status, liveStaple.SerialNumber)
+			vc.Errorf("  OCSP: BAD status=%v sn=%v", liveStaple.Status, liveStaple.SerialNumber)
 		}
 	}
 	if count == 0 {
