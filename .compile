@@ -1,0 +1,31 @@
+#!/bin/sh
+set -eu
+
+dir="$(dirname "$0")"
+: "${dir:=.}"
+
+subcmd=build
+StaticFlags=''
+if [ $# -gt 0 ]; then
+	case "$1" in
+	-*) ;;
+	static)
+		StaticFlags='-linkmode external -extldflags -static'
+		shift
+		;;
+	*)
+		subcmd="$1"
+		shift
+		;;
+	esac
+fi
+
+# We trust our own tag names to be safe, not including whitespace etc, but not
+# those of repos we don't control, thus the .repo-versions script does a bunch
+# of escaping.
+ver_varname='main.VersionString'
+ver_value="$(git -C "$dir" describe --always --dirty --tags)"
+repo_varname='main.RepoVersionString'
+repo_versions="$("$dir/.repo-versions")"
+
+"${GO_CMD:-go}" "${subcmd}" -ldflags "-X ${ver_varname}=${ver_value} -X ${repo_varname}=${repo_versions} ${StaticFlags}" "$@"

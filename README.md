@@ -6,7 +6,7 @@ smtpdane
 **THIS HAS NOT YET BEEN TESTED TO CONFIRM IT FAILS WHEN IT SHOULD, AGAINST BAD
 CERTIFICATES OR DNS**
 
-Go 1.8+ : `go get go.pennock.tech/smtpdane`
+Go 1.8+ : `go get go.pennock.tech/smtpdane`  _(but see helpers below)_
 
 This is an SMTP client which can connect to an SMTP server, issue `STARTTLS`
 and verify the certificate using DANE (TLSA records signed with DNSSEC).
@@ -82,15 +82,25 @@ build.  This assumes that `$GOPATH` and other Golang-controlling environment
 variables have not been set; as of Go 1.8, `~/go` is the default solitary
 entry in the `$GOPATH` list.
 
+Use `~/go/src/go.pennock.tech/smtpdane/.compile` to build with embedded
+version information from various repositories.
+
 To build as a static binary for deployment into a lib-less environment:
 
 ```sh
+# simple
+~/go/src/go.pennock.tech/smtpdane/.compile static
+# manual:
+cd /go/src/go.pennock.tech/smtpdane
 go build -ldflags "-linkmode external -extldflags -static"
 ```
 
 At this time there is no vendoring of dependencies.  If this matters in your
 environment, capture them for your use-cases.  If our dependency list grows to
 include packages with unstable APIs then this decision will be revisited.
+
+Optionally, use `./.compile` instead of `go build` to embed extra repository
+information into the binary.
 
 
 ## Invoking
