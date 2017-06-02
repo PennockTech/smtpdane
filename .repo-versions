@@ -10,11 +10,15 @@ set -eu
 for DEP in \
 	go.pennock.tech/smtpdane \
 	github.com/miekg/dns \
-	golang.org/x/crypto/ocsp \
+	golang.org/x/crypto:ocsp \
 ; do
-	d="$(go list -f '{{.Dir}}' "$DEP")"
+	case $DEP in
+		*:*) pathDEP="$(printf '%s\n' "$DEP" | tr : /)" ;;
+		*) pathDEP="$DEP" ;;
+	esac
+	d="$(go list -f '{{.Dir}}' "$pathDEP")"
 	if [ -x "$d/.version" ]; then
-		printf '%s\037%s\036' "$DEP" "$("$d/.version" | tr ' ' '\032' )"
+		printf '%s\037%s\036' "${DEP%:*}" "$("$d/.version" | tr ' ' '\032' )"
 		continue
 	fi
 	branch="$(git -C "$d" symbolic-ref --short HEAD 2>/dev/null || echo "not-on-branch")"
@@ -24,6 +28,6 @@ for DEP in \
 		branch="$(printf ",%s" "$branch" | tr ' ' '\032' )"
 	fi
 	base="$(git -C "$d" describe --always --dirty --tags | tr ' ' '\032' )"
-	printf '%s\037%s%s\036' "$DEP" "$base" "$branch"
+	printf '%s\037%s%s\036' "${DEP%:*}" "$base" "$branch"
 done
 echo
