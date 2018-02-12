@@ -257,7 +257,7 @@ func (vc *validationContext) probeConnectedAddr(conn net.Conn) {
 		return
 	}
 
-	vc.Wafflef("issuing STARTTLS")
+	vc.Wafflef("issuing STARTTLS [port %d]", vc.port)
 	err = s.StartTLS(tlsConfig)
 	if err != nil {
 		vc.Errorf("STARTTLS failed: %s", err)
@@ -273,7 +273,7 @@ func (vc *validationContext) probeConnectedAddr(conn net.Conn) {
 }
 
 func (vc *validationContext) tryTLSOnConn(conn net.Conn, tlsConfig *tls.Config, chCertDetails <-chan certDetails) {
-	vc.Messagef("starting TLS immediately")
+	vc.Messagef("starting TLS immediately [port %d]", vc.port)
 	c := tls.Client(conn, tlsConfig)
 	t := textproto.NewConn(c)
 

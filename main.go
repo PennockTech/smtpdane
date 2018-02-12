@@ -48,6 +48,7 @@ func init() {
 
 	flag.BoolVar(&opts.mxLookup, "mx", false, "arguments are domains, lookup MX records")
 	flag.BoolVar(&opts.submissionLookup, "submission", false, "arguments are domains, lookup submission SRV records")
+	flag.BoolVar(&opts.submissionsLookup, "submissions", false, "arguments are domains, lookup submissions SRV records & auto-enable -tls-on-connect")
 	flag.StringVar(&opts.srvTCPLookup, "srv", "", "arguments are domains, lookup this TCP SRV record")
 
 	flag.BoolVar(&opts.onlyIPv4, "4", false, "only probe IPv4 addresses")
@@ -64,8 +65,12 @@ func checkFlagsForConflicting() bool {
 		out = os.Stdout
 	}
 
-	if opts.mxLookup && opts.submissionLookup {
-		fmt.Fprintf(out, "%s: -mx and -submission conflict\n", os.Args[0])
+	if opts.mxLookup && (opts.submissionLookup || opts.submissionsLookup) {
+		fmt.Fprintf(out, "%s: -mx and -submission(s) conflict\n", os.Args[0])
+		return true
+	}
+	if opts.submissionLookup && opts.submissionsLookup {
+		fmt.Fprintf(out, "%s: -submission and -submissions conflict\n", os.Args[0])
 		return true
 	}
 	if opts.mxLookup && opts.srvTCPLookup != "" {
@@ -103,6 +108,9 @@ func main() {
 		exitServerErrors = 2
 		exitServerWarnings = 1
 		errOutStream = os.Stdout
+	}
+	if opts.submissionsLookup {
+		opts.tlsOnConnect = true
 	}
 
 	if opts.showVersion {
@@ -150,6 +158,8 @@ func main() {
 			go probeMX(hostSpec, status)
 		} else if opts.submissionLookup {
 			go probeSRV("submission", hostSpec, status)
+		} else if opts.submissionsLookup {
+			go probeSRV("submissions", hostSpec, status)
 		} else if opts.srvTCPLookup != "" {
 			go probeSRV(opts.srvTCPLookup, hostSpec, status)
 		} else {

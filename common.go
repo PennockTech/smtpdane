@@ -38,6 +38,7 @@ var opts struct {
 	showVersion       bool
 	srvTCPLookup      string
 	submissionLookup  bool
+	submissionsLookup bool
 	terse             bool
 	tlsOnConnect      bool
 }

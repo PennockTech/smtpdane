@@ -16,14 +16,13 @@ not PKIX CA anchoring.
 Per [RFC7672][] we only support `DANE-TA(2)` and `DANE-EE(3)`;
 `PKIX-TA(0)` and `PKIX-EE(1)` are explicitly unsupported.
 
-~~To avoid requiring a local DNSSEC validating DNS resolver, DNSSEC is validated
-inside the `smtpdane` tool.  To achieve this, the root zone trust anchors are
-baked into the code.  Every few years these are rotated and `smtpdane` will
-need to be updated and rebuilt.~~ _\[NB: this functionality not yet implemented,
-still rely upon a validating resolver right now.\]_
+This relies upon a validating DNS resolver; we do not yet validate internally.
+(Most tools should not validate themselves, but perhaps a monitoring tool
+should?)
 
-Optionally this client can speak TLS-on-connect instead of STARTTLS, to aid
-with monitoring `smtps` (commonly deployed on the non-IANA-assigned port 465).
+Optionally this client can speak TLS-on-connect instead of STARTTLS,
+for [RFC8314][] `submissions` service (historically called `smtps` or
+`ssmtp`); this is port 465 mail service for clients to submit mail.
 
 The tool will connect to each SMTP server specified, in parallel.  If there
 are multiple IP addresses, then each will be connected to, in parallel.
@@ -113,10 +112,16 @@ options.
 Use `-port` to specify a different port to speak on, for each host which
 doesn't specify a specific port.
 Note that `-port` specifies a default; if looking up SRV records, ports from
-SRV override the `-port` option.  However, port overrides on the host override
-SRV.
+SRV override the `-port` option.  However, port overrides on the host (see
+below) override SRV.
 
-Use `-tls-on-connect` to immediately start TLS instead of negotiating.
+Use `-tls-on-connect` to immediately start TLS instead of negotiating.  
+Use `-mx` to indicate that names supplied are domain-names and MX records
+should be looked up.  
+Use `-submission` to do the same but look up service `submission` SRV records,
+typically used for port 587 service.  
+Use `-submissions` to do the same, looking up for `submissions` though and
+forcing on the `-tls-on-connect` option.
 
 The port can be included with the host in the usual `:1234` suffix notation;
 if the host is an IPv6 address, either do not include a port or use the
@@ -146,15 +151,15 @@ smtpdane -mx example.org
 # Regular lookup of SMTP Submission for a domain:
 smtpdane -submission example.org
 
+# Regular lookup of SMTP Submissions TLS-on-connect for a domain:
+smtpdane -submissions example.org
+
 # Connect to port 26 for a server, IPv4-only:
 smtpdane -4 -port 26 mx1.example.org
 
-# Check TLS-on-connect for a server:
-smtpdane -port 465 -tls-on-connect smtp.example.org
-
-# Connect to the "usual" de-facto standard TLS-on-connect SMTPS port,
-# on each host which is a submission host for the domain,
-# and speak TLS-on-connect:
+# Check if there is a Submissions (TLS-on-connect, 465) service on
+# each IP found for Submission service (587) to confirm that you're
+# good to add the newer _submissions._tcp SRV records too:
 smtpdane -tls-on-connect -submission example.org:465
 
 # Also try checking another hostname
@@ -200,4 +205,5 @@ green.  Note that a `TryLater` response-code is treated as a warning.
 
 [RFC7672]: https://tools.ietf.org/html/rfc7672
            "SMTP Security via Opportunistic DNS-Based Authentication of Named Entities (DANE) Transport Layer Security (TLS)"
-
+[RFC8314]: https://tools.ietf.org/html/rfc8314
+           "Cleartext Considered Obsolete: Use of Transport Layer Security (TLS) for Email Submission and Access"
