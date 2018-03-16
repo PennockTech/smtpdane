@@ -248,7 +248,7 @@ Sa4xHw==
 -----END CERTIFICATE-----
 `)
 
-var dataCATLSACert = &dns.TLSA{dns.RR_Header{}, 2, 0, 1, "e348526e32d604c1ca313637940ae1035da6055039890de9863885403cd34f63"}
-var dataCATLSAPubkey = &dns.TLSA{dns.RR_Header{}, 2, 1, 1, "c6959b48dd7a09d1f3e2dba1b8c308a5821244d34fa6484c4b2dfb141a23b6e4"}
-var dataSvrTLSACert = &dns.TLSA{dns.RR_Header{}, 3, 0, 1, "78da6f10cdccd9775872ff871178748df22fcbe6ad66d9d744737cb0e9fa9b3c"}
-var dataSvrTLSAPubkey = &dns.TLSA{dns.RR_Header{}, 3, 1, 1, "9a8079b2bfff4b8250cdeadfe26a406f27d79d5b1a15ed9310c240cb5bd9de27"}
+var dataCATLSACert = &dns.TLSA{Hdr: dns.RR_Header{}, Usage: 2, Selector: 0, MatchingType: 1, Certificate: "e348526e32d604c1ca313637940ae1035da6055039890de9863885403cd34f63"}
+var dataCATLSAPubkey = &dns.TLSA{Hdr: dns.RR_Header{}, Usage: 2, Selector: 1, MatchingType: 1, Certificate: "c6959b48dd7a09d1f3e2dba1b8c308a5821244d34fa6484c4b2dfb141a23b6e4"}
+var dataSvrTLSACert = &dns.TLSA{Hdr: dns.RR_Header{}, Usage: 3, Selector: 0, MatchingType: 1, Certificate: "78da6f10cdccd9775872ff871178748df22fcbe6ad66d9d744737cb0e9fa9b3c"}
+var dataSvrTLSAPubkey = &dns.TLSA{Hdr: dns.RR_Header{}, Usage: 3, Selector: 1, MatchingType: 1, Certificate: "9a8079b2bfff4b8250cdeadfe26a406f27d79d5b1a15ed9310c240cb5bd9de27"}

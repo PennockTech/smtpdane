@@ -1,0 +1,12 @@
+#!/bin/sh -u
+
+echo "# Show-versions: {{{"
+
+date
+uname -a
+"${GIT_CMD:-git}" version
+"${GIT_CMD:-git}" config --get remote.origin.url
+"${GO_CMD:-go}" version
+
+echo "# Show-versions: }}}"
+echo

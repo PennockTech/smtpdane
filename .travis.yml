@@ -23,16 +23,14 @@ branches:
 go_import_path: go.pennock.tech/smtpdane
 
 install:
-  - git --version
-  - git config --get remote.origin.url
+  - ./build/show.versions
   - go get -t -v -u ./...
-  - test "${UPLOAD_COVERAGE:-false}" != "true" || go get github.com/mattn/goveralls
-  - test "${UPLOAD_COVERAGE:-false}" != "true" || go get github.com/wadey/gocovmerge
+  - test "${UPLOAD_COVERAGE:-false}" != "true" || ./build/install.coveragetools
 
 script:
   - go vet ./...
   - go test -v ./...
-  - test "${UPLOAD_COVERAGE:-false}" != "true" || ./CoverTest.sh
+  - test "${UPLOAD_COVERAGE:-false}" != "true" || ./build/CoverTest.sh
 
 after_script:
   - test "${UPLOAD_COVERAGE:-false}" != "true" || goveralls -coverprofile=coverage.out -service=travis-ci

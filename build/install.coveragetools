@@ -1,0 +1,3 @@
+#!/bin/sh -eux
+go get -v -u github.com/mattn/goveralls
+go get -v -u github.com/wadey/gocovmerge
