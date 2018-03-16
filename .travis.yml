@@ -1,0 +1,49 @@
+language: go
+
+# Be explicit about not needing sudo, so that Travis will use container-based
+# infrastructure for our jobs, always, fewer heuristics.
+sudo: false
+
+matrix:
+  allow_failures:
+    - go: tip
+  fast_finish: true
+  include:
+    - go: 1.10.x
+      env: UPLOAD_COVERAGE=true
+    - go: 1.9.x
+    - go: 1.8.x
+      # We use features introduced with 1.8.x
+    - go: tip
+
+branches:
+  except:
+    - /^(?:exp|wip)(?:[/_-].*)?$/
+
+go_import_path: go.pennock.tech/smtpdane
+
+install:
+  - git --version
+  - git config --get remote.origin.url
+  - go get -t -v -u ./...
+  - test "${UPLOAD_COVERAGE:-false}" != "true" || go get github.com/mattn/goveralls
+  - test "${UPLOAD_COVERAGE:-false}" != "true" || go get github.com/wadey/gocovmerge
+
+script:
+  - go vet ./...
+  - go test -v ./...
+  - test "${UPLOAD_COVERAGE:-false}" != "true" || ./CoverTest.sh
+
+after_script:
+  - test "${UPLOAD_COVERAGE:-false}" != "true" || goveralls -coverprofile=coverage.out -service=travis-ci
+
+# pubkey="$(curl -fSs "https://api.travis-ci.org/repos/PennockTech/smtpdane/key" | jq -r .key)"
+# openssl rsautl -pubin -inkey <(echo "$pubkey") -encrypt -pkcs <<<"foo" | openssl enc -base64 -A ; echo
+#
+# In this case, replace "foo" with "<account>:<token>#<channel>"
+notifications:
+  slack:
+    on_success: always
+    rooms:
+      - secure: "L3WnObDKJ/uvLHmcpZUclPB7jIZyb3CLiTHod29FlMPZGEJLJosb+gGnez8oVbhTwAcUmVO7Y0IaJFLg0PnksKfu7DHu01EdBnFaa4aDcia0UlPtGANvdhVSSM00y4FQ3RjjnJTBh99kkh258ydY0siV4K9+sBtzdCHtZqS2tk1idgANXXovDN8cRvQnFSDsXg6QgmaR/Xa8A+pTlH0dzaVSgvW/53HzNOskqCmKJX4mwwlDFTgM5KJrT2CQQ9RmTBPwu+eU2SWVETQgf+FPTu4oxJ04/mHS/TON8A6Fzpa5hJHJZkW7g6jCCJTCE9Y0Ts1lI+25ainuWOS/skPRogFVIR2JmkTvJO5ylnX0EhFEyOwc2kBVZB7dL+T5TYYPNB4nueVMktjRLVuvYZbxT4HnYB7uQJD6Xnonwf6XqYRDuZno8ZircKa3/8Kh2H414nmeq8RNJ2yrg/Pg/nMpncEU4qtQFz/dOMYMybNeh0+Z71LgUa/Ij30OKEi291zxeyvsSHO2g19hNRVSMBLuGyruj03GGb5q0Tle3L1wu8xkAKKXFNZn9OAxOR3jC8saqC4bpTQF8CgxgWnxyFcGWAPFe9AH0GAV7+rO7l12+R0wFamr6bXF9AY9iczbbQkOsMjMAyUgrXQXlyP3TUZAnTrLaBF0pPG3ldWU8ZYD2M4="
+
