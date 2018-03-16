@@ -1,10 +1,14 @@
 smtpdane
 ========
 
-**EARLY ALPHA SOFTWARE**
+[![Continuous Integration](https://secure.travis-ci.org/PennockTech/smtpdane.svg?branch=master)](http://travis-ci.org/PennockTech/smtpdane)
+[![Coverage Status](https://coveralls.io/repos/github/PennockTech/smtpdane/badge.svg)](https://coveralls.io/github/PennockTech/smtpdane)
 
-**THIS HAS NOT YET BEEN TESTED TO CONFIRM IT FAILS WHEN IT SHOULD, AGAINST BAD
-CERTIFICATES OR DNS**
+**Early Beta Software**
+
+**There are not yet enough tests to be sure that this fails when it should,
+against bad certificates or DNS, but in real-world usage it has so far failed
+when it should.**
 
 Go 1.8+ : `go get go.pennock.tech/smtpdane`  _(but see helpers below)_
 
@@ -29,40 +33,6 @@ are multiple IP addresses, then each will be connected to, in parallel.
 
 Flags may be used to request looking up MX records or SRV records for a
 domain.
-
-
-### Access needed
-
-You should be able to write a security sandbox profile to constrain this tool,
-based upon the information here.  If it's not listed but is needed, then
-that's a documentation bug, please report it.
-
-1. Network connectivity, outbound on port 53, UDP and TCP
-   + If `/etc/resolv.conf` or `DNS_RESOLVER` specifies another port, then that
-     port too
-   + If invoked with a hostname which dispatches to multicast DNS, then likely
-     port 5353
-2. Outbound TCP, on port 25 and any other ports required for monitoring SMTP.
-   (587 and 465 are common choices).
-   + Ports can be supplied on the command-line, or via SRV records if invoked
-     with `-srv`
-3. Stdio, ability to write to stdout/stderr.
-4. `/etc/resolv.conf`
-   + If the `DNS_RESOLVER` environment variable is set, it's used for
-     resolution, but the libraries still load this file
-5. Read-only access to `$SSL_CERT_FILE` and `$SSL_CERT_DIR` locations, and if
-   neither of those is set then to a set of common locations for those files.
-   + Inhibit with `-nocertnames`
-6. Read-only access to `/etc/services`; on many OSes also `/etc/nsswitch.conf`
-   to handle indirection to that, and then if that's _not_ just the file, then
-   wherever else services are read from.  Sometimes other `/etc` files used
-   for DNS resolution.
-7. Usually some source of system entropy (`/dev/urandom`) if not available via
-   a system call.
-8. Any other common OS start-up files used even for statically linked files.
-   + Eg, `/etc/malloc.conf` on some OSes
-9. No other filesystem access should be required, if statically linked.
-   + otherwise, everything used by the dynamic loader too
 
 
 ## Installation
@@ -105,6 +75,8 @@ information into the binary.
 ## Invoking
 
 Invoke with `-help` to see help output listing known flags and defaults.
+
+Most commonly: `smtpdane -mx my-domain.example.org`
 
 The host to connect to is provided as a list of one or more hosts after any
 options.
@@ -178,7 +150,7 @@ smtpdane -expect-ocsp -mx example.org
 
 # Be invoked for Nagios monitoring, with terse output, no color codes,
 # avoiding stderr, but checking for OCSP (& DANE) on all MX servers
-smtpdane -nagios -expect-ocsp -mx spodhuis.org
+smtpdane -nagios -expect-ocsp -mx example.org
 ```
 
 Note that the `-aka` names are added to the list of "acceptable" names; you'll
@@ -201,6 +173,53 @@ OCSP status is only reported if either `-show-cert-info` or
 `-expect-ocsp` is passed.  The latter will cause missing OCSP information to
 be treated as an error, and present/good OCSP information to be shown in
 green.  Note that a `TryLater` response-code is treated as a warning.
+
+A simple invocation for a `crontab(5)` might be:
+
+```
+17 */3 * * * /home/myname/go/bin/smtpdane -q -expect-ocsp -mx example.org
+```
+
+That will check every 3 hours, at 17 minutes past the hour, and check every IP
+for every hostname returned by the MX records for the domain, checking
+certificate validity with default notification periods, and declaring an
+absence of OCSP information to be an error.  No output will be produced as
+long as everything is fine, but there will be output if there are problems,
+and cron will send an email.
+
+
+### Access needed
+
+You should be able to write a security sandbox profile to constrain this tool,
+based upon the information here.  If it's not listed but is needed, then
+that's a documentation bug, please report it.
+
+1. Network connectivity, outbound on port 53, UDP and TCP
+   + If `/etc/resolv.conf` or `DNS_RESOLVER` specifies another port, then that
+     port too
+   + If invoked with a hostname which dispatches to multicast DNS, then likely
+     port 5353
+2. Outbound TCP, on port 25 and any other ports required for monitoring SMTP.
+   (587 and 465 are common choices).
+   + Ports can be supplied on the command-line, or via SRV records if invoked
+     with `-srv`
+3. Stdio, ability to write to stdout/stderr.
+4. `/etc/resolv.conf`
+   + If the `DNS_RESOLVER` environment variable is set, it's used for
+     resolution, but the libraries still load this file
+5. Read-only access to `$SSL_CERT_FILE` and `$SSL_CERT_DIR` locations, and if
+   neither of those is set then to a set of common locations for those files.
+   + Inhibit with `-nocertnames`
+6. Read-only access to `/etc/services`; on many OSes also `/etc/nsswitch.conf`
+   to handle indirection to that, and then if that's _not_ just the file, then
+   wherever else services are read from.  Sometimes other `/etc` files used
+   for DNS resolution.
+7. Usually some source of system entropy (`/dev/urandom`) if not available via
+   a system call.
+8. Any other common OS start-up files used even for statically linked files.
+   + Eg, `/etc/malloc.conf` on some OSes
+9. No other filesystem access should be required, if statically linked.
+   + otherwise, everything used by the dynamic loader too
 
 
 [RFC7672]: https://tools.ietf.org/html/rfc7672
