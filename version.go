@@ -13,7 +13,7 @@ import (
 const programName = "smtpdane"
 
 // may be updated by the linker on the link command-line when compiling
-var VersionString string = "0.2.2"
+var VersionString string = "0.3.0"
 
 // may be updated by the linker on the link command-line when compiling
 var RepoVersionString string = ""
