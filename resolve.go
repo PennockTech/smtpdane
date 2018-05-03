@@ -1,4 +1,4 @@
-// Copyright © 2017 Pennock Tech, LLC.
+// Copyright © 2017,2018 Pennock Tech, LLC.
 // All rights reserved, except as granted under license.
 // Licensed per file LICENSE.txt
 
@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"sync"
 
@@ -88,6 +89,15 @@ func resolversFromString(input string) []string {
 // I want to get this working without needing a validating resolver.
 // This should be a standalone monitoring tool.
 func resolveRRSecure(
+	cbfunc func(typ uint16, rr dns.RR, rrname string) (interface{}, error),
+	rrname string,
+	typlist ...uint16,
+) ([]interface{}, error) {
+	return resolveRRmaybeSecure(true, cbfunc, rrname, typlist...)
+}
+
+func resolveRRmaybeSecure(
+	needSecure bool,
 	// the cbfunc is called the the confirmed RR type and the rr and the rrname;
 	// it should return an item to be added to the resolveRRSecure return list,
 	// and an error; non-nil error inhibits appending to the list.
@@ -173,7 +183,7 @@ DNS_RRTYPE_LOOP:
 			// link to trusted resolver.
 			// Assume all our resolvers are equivalent for AD/not, so if not AD, try the
 			// next type (because some DNS servers break horribly on AAAA).
-			if !r.AuthenticatedData {
+			if needSecure && !r.AuthenticatedData {
 				errList.AddErrorf("not AD set for results from %v for %q/%v query", resolver, rrname, dns.Type(typ))
 				r = nil
 				continue DNS_RRTYPE_LOOP
@@ -233,6 +243,9 @@ func cbRRTypeAddr(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
 	return nil, fmt.Errorf("BUG: cbRRTypeAddr(%v,..,%q) called, expected A/AAAA", dns.Type(typ), rrname)
 }
 
+// ResolveAddrSecure takes a hostname and returns a list of address records and
+// the hostname to which those address records correspond; if the returned
+// hostname is not the input hostname, then CNAMEs of some kind are involved.
 func ResolveAddrSecure(hostname string) ([]net.IP, string, error) {
 	rl, e := resolveRRSecure(cbRRTypeAddr, dns.Fqdn(hostname), dns.TypeAAAA, dns.TypeA)
 	if e != nil {
@@ -251,6 +264,28 @@ func ResolveAddrSecure(hostname string) ([]net.IP, string, error) {
 		}
 	}
 	return addrList, resolvedName, nil
+}
+
+// ResolveAddrINSECURE lets us get address records when we don't care about the
+// DNSSEC security.  We just want the list of IP addresses.
+func ResolveAddrINSECURE(hostname string) ([]net.IP, error) {
+	rl, e := resolveRRmaybeSecure(false, cbRRTypeAddr, dns.Fqdn(hostname), dns.TypeAAAA, dns.TypeA)
+	if e != nil {
+		return nil, e
+	}
+	var resolvedName string
+	addrList := make([]net.IP, len(rl))
+	for i := range rl {
+		ar := rl[i].(addrRecord)
+		addrList[i] = ar.addr
+		if resolvedName != "" && resolvedName != ar.rrname {
+			return nil, fmt.Errorf("seen multiple RRnames for %q: both %q & %q", hostname, resolvedName, ar.rrname)
+		}
+		if resolvedName == "" {
+			resolvedName = ar.rrname
+		}
+	}
+	return addrList, nil
 }
 
 type TLSAset struct {
@@ -326,7 +361,7 @@ func TLSAMediumString(rr *dns.TLSA) string {
 		prefix + rest
 }
 
-func cbRRTypeMX(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
+func cbRRTypeMXjustnames(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
 	switch typ {
 	case dns.TypeMX:
 		if mx, ok := rr.(*dns.MX); ok {
@@ -338,9 +373,21 @@ func cbRRTypeMX(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
 	return nil, fmt.Errorf("BUG: cbRRTypeMX(%v,..,%q) called, expected MX", dns.Type(typ), rrname)
 }
 
+func cbRRTypeMXresults(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
+	switch typ {
+	case dns.TypeMX:
+		if mx, ok := rr.(*dns.MX); ok {
+			return mx, nil
+		} else {
+			return nil, fmt.Errorf("MX record failed to cast to *dns.MX [%q/%v]", rrname, dns.Type(typ))
+		}
+	}
+	return nil, fmt.Errorf("BUG: cbRRTypeMX(%v,..,%q) called, expected MX", dns.Type(typ), rrname)
+}
+
 // ResolveMX only returns the hostnames, we don't care about the Preference
 func ResolveMX(hostname string) ([]string, error) {
-	rl, e := resolveRRSecure(cbRRTypeMX, dns.Fqdn(hostname), dns.TypeMX)
+	rl, e := resolveRRSecure(cbRRTypeMXjustnames, dns.Fqdn(hostname), dns.TypeMX)
 	if e != nil {
 		return nil, e
 	}
@@ -349,6 +396,52 @@ func ResolveMX(hostname string) ([]string, error) {
 		hostnameList[i] = rl[i].(string)
 	}
 	return hostnameList, nil
+}
+
+type MXTierResults struct {
+	Preference int
+	Hostnames  []string
+}
+
+// ResolveMXTiers returns an ordered slice of the MX tiers, ordering by MX
+// Preference from "try first" (lowest number) to "try last" (highest number),
+// each entry in the slice being one tier, an MXTierResults.
+// The second result is the total count of MX records seen, which may include
+// duplicates.
+func ResolveMXTiers(hostname string) ([]MXTierResults, int, error) {
+	rl, e := resolveRRSecure(cbRRTypeMXresults, dns.Fqdn(hostname), dns.TypeMX)
+	if e != nil {
+		return nil, 0, e
+	}
+
+	count := 0
+	all := make(map[int]MXTierResults, len(rl))
+	dupPreferences := make([]int, 0, len(rl))
+	for i := range rl {
+		item := rl[i].(*dns.MX)
+		pref := int(item.Preference)
+		m, ok := all[pref]
+		if !ok {
+			m = MXTierResults{Preference: pref, Hostnames: make([]string, 0, 3)}
+		}
+		m.Hostnames = append(m.Hostnames, item.Mx)
+		all[pref] = m
+		dupPreferences = append(dupPreferences, pref)
+		count++
+	}
+
+	sort.Ints(dupPreferences)
+	results := make([]MXTierResults, 0, len(all))
+	prev := -1
+	for _, i := range dupPreferences {
+		if i == prev {
+			continue
+		}
+		prev = i
+		results = append(results, all[i])
+	}
+
+	return results, count, nil
 }
 
 func cbRRTypeSRV(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
@@ -374,4 +467,39 @@ func ResolveSRV(lookup string) ([]*dns.SRV, error) {
 		srvList[i] = rl[i].(*dns.SRV)
 	}
 	return srvList, nil
+}
+
+func cbRRTypeCNAME(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
+	switch typ {
+	case dns.TypeCNAME:
+		if cname, ok := rr.(*dns.CNAME); ok {
+			return cname.Target, nil
+		} else {
+			return nil, fmt.Errorf("CNAME record failed to cast to *dns.CNAME [%q/%v]", rrname, dns.Type(typ))
+		}
+	}
+	return nil, fmt.Errorf("BUG: cbRRTypeCNAME(%v,..,%q) called, expected CNAME", dns.Type(typ), rrname)
+}
+
+// ResolveCNAME returns a string of the CNAME's Target.  Since we asked for a CNAME, CNAME
+// results should not have been chased.
+func ResolveCNAME(lookup string) (string, error) {
+	rl, e := resolveRRSecure(cbRRTypeCNAME, dns.Fqdn(lookup), dns.TypeCNAME)
+	if e != nil {
+		return "", e
+	}
+	found := false
+	var resolvedName string
+	for i := range rl {
+		target := rl[i].(string)
+		if found && target != resolvedName {
+			return "", fmt.Errorf("seen multiple CNAME targets for %q: both %q & %q", lookup, resolvedName, target)
+		}
+		resolvedName = target
+		found = true
+	}
+	if found {
+		return resolvedName, nil
+	}
+	panic("should not have reached here, resolveRRSecure should have errored instead")
 }

@@ -1,4 +1,4 @@
-// Copyright © 2017 Pennock Tech, LLC.
+// Copyright © 2017,2018 Pennock Tech, LLC.
 // All rights reserved, except as granted under license.
 // Licensed per file LICENSE.txt
 
@@ -30,7 +30,7 @@ func probeMX(domainSpec string, status *programStatus) {
 		return
 	}
 
-	hostnameList, err := ResolveMX(domain)
+	tieredResults, mxCount, err := ResolveMXTiers(domain)
 	if err != nil {
 		switch e := err.(type) {
 		case *errorlist.List:
@@ -41,21 +41,24 @@ func probeMX(domainSpec string, status *programStatus) {
 		return
 	}
 
-	status.Wafflef("found %d MX records for %q: %v", len(hostnameList), domain, hostnameList)
+	status.Wafflef("found %d MX records for %q across %d preference levels", mxCount, domain, len(tieredResults))
 	// MX returns DNS label sequences for hostnames, so by definition each is already IsFqdn(),
 	// so no need to check before looking for TLSA records, etc.
 
-	seen := make(map[string]struct{}, len(hostnameList))
-	for _, hn := range hostnameList {
-		if _, already := seen[hn]; already {
-			status.Messagef("skipping dup MX hostname: %q", hn)
-			continue
+	seen := make(map[string]struct{}, mxCount)
+	for i := range tieredResults {
+		status.Wafflef("  %q MX preference %d: %v", domain, tieredResults[i].Preference, tieredResults[i].Hostnames)
+		for _, hn := range tieredResults[i].Hostnames {
+			if _, already := seen[hn]; already {
+				status.Messagef("skipping dup MX hostname: %q", hn)
+				continue
+			}
+			seen[hn] = struct{}{}
+			if port != "" {
+				hn = net.JoinHostPort(hn, port)
+			}
+			probeHostGo(hn, status, domain)
 		}
-		seen[hn] = struct{}{}
-		if port != "" {
-			hn = net.JoinHostPort(hn, port)
-		}
-		probeHostGo(hn, status, domain)
 	}
 }
 

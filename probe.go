@@ -1,4 +1,4 @@
-// Copyright © 2017 Pennock Tech, LLC.
+// Copyright © 2017,2018 Pennock Tech, LLC.
 // All rights reserved, except as granted under license.
 // Licensed per file LICENSE.txt
 
@@ -71,6 +71,20 @@ func probeHostGo(hostSpec string, status *programStatus, otherValidNames ...stri
 	go probeHost(hostSpec, status, otherValidNames...)
 }
 
+func statusErrorReportf(status *programStatus, err error, prefixTemplate string, args ...interface{}) {
+	prefix := fmt.Sprintf(prefixTemplate, args...)
+	switch e := err.(type) {
+	case *errorlist.List:
+		if opts.terse {
+			status.Errorf("%s: %s", prefix, e.FmtList())
+		} else {
+			status.Errorf("%s\n%s", prefix, e.FmtIndented())
+		}
+	default:
+		status.Errorf("%s: %s", prefix, err)
+	}
+}
+
 // probeHost is the top-level function of a go-routine and is responsible for
 // probing one remote SMTP connection.
 //
@@ -80,62 +94,109 @@ func probeHostGo(hostSpec string, status *programStatus, otherValidNames ...stri
 func probeHost(hostSpec string, status *programStatus, otherValidNames ...string) {
 	defer status.BatchFinished()
 
-	hostname, port, err := HostnamePortFrom(hostSpec)
-	if err != nil {
-		status.Errorf("error parsing %q: %s", hostSpec, err)
-		return
-	}
-
-	ipList, resolvedHostname, err := ResolveAddrSecure(hostname)
-	if err != nil {
-		switch e := err.(type) {
-		case *errorlist.List:
-			if opts.terse {
-				status.Errorf("error resolving %q: %s", hostname, e.FmtList())
-			} else {
-				status.Errorf("error resolving %q:\n%s", hostname, e.FmtIndented())
-			}
-		default:
-			status.Errorf("error resolving %q: %s", hostname, err)
-		}
-		return
-	}
-
-	if resolvedHostname == hostname {
-		status.Wafflef("found %d addresses for %q: %v", len(ipList), hostname, ipList)
-	} else {
-		if opts.mxLookup {
-			// Being generous by not just deeming this an error; still, mark it red
-			status.Messagef(ColorRed("VIOLATION: MX hostname is a CNAME: %q -> %q"), hostname, resolvedHostname)
-		}
-		status.Wafflef("found %d addresses for %q at %q: %v", len(ipList), hostname, resolvedHostname, ipList)
-	}
-
 	// RFC 7671 section 7: chase CNAMEs (as long as secure) of Base Domain and
 	// try for TLSA there first, but then fall back to the original name if not
 	// found.  Only the final name and original name should be tried, not any
 	// intermediate CNAMEs if they were chained.
 	//
 	// MX hostnames are not supposed to be CNAMEs so this _shouldn't_ crop up.
-	// But if it does, handle it.
+	// But if it does, handle it.  The support is explicitly called out in DANE.
 
-	tlsaSet, err := ResolveTLSA(resolvedHostname, port)
+	// CNAMEs for TLSA records within the resolution chain have to be chased
+	// securely all the way, there must be complete verifiable trust to the
+	// TLSA records.  The only insecurity we have to handle is for the address
+	// records, which determine which of exactly two hostnames we use as input
+	// for the TLSA record lookup.
+	//
+	//  mx1.secure.example
+	//    -CNAME-> foo.secure.example
+	//    -CNAME-> bar.insecure.example
+	//    -CNAME-> baz.irrelvant.example     OR -A-> frob.secure-again.example
+	//    -A->     192.0.2.10
+	//
+	//  mx2.secure.example
+	//    -CNAME-> nozz.secure-again.example
+	//    -A->     192.0.2.20
+	//
+	// For the mx1 case, even with insecure address resolution, we'll try to
+	// look for TLSA records for `mx1.secure.example`.
+	// For the mx2 case, `nozz.secure-again.example` is the preferred name, but
+	// if no secure records are found, then `mx2.secure.example` is tried too.
+
+	originalHostname, port, err := HostnamePortFrom(hostSpec)
 	if err != nil {
-		switch e := err.(type) {
-		case *errorlist.List:
-			status.Errorf("error resolving TLSA for %q port %d:\n%s", resolvedHostname, port, e.FmtIndented())
-		default:
-			status.Errorf("error resolving TLSA for %q port %d: %v", resolvedHostname, port, err)
+		status.Errorf("error parsing %q: %s", hostSpec, err)
+		return
+	}
+
+	// We might have an MX record which is a CNAME; that's normally not allowed
+	// by SMTP but is explicitly covered in the DANE SMTP spec.  If we do have
+	// a secure path to the original zone, then we do check below for a TLSA
+	// record there.  As long as the TLSA record is secure, we're "good", we have
+	// a secure identity to verify.
+	ipListIsSecure := true
+	ipList, preferredHostname, err := ResolveAddrSecure(originalHostname)
+	var resolvedCNAME string
+	if err != nil {
+		originalErr := err
+
+		resolvedCNAME, err = ResolveCNAME(originalHostname)
+		if err != nil {
+			// original is insecure too, so we disable DANE because origin domain
+			// is unsigned, don't even try TLSA records.
+			statusErrorReportf(status, originalErr, "error securely resolving %q", originalHostname)
+			return
+		}
+		// skip handling loops, leave that to the insecure resolution to detect
+
+		ipList, err = ResolveAddrINSECURE(originalHostname)
+		if err != nil || len(ipList) == 0 {
+			statusErrorReportf(status, originalErr, "error securely resolving %q", originalHostname)
+			return
 		}
 
-		tlsaSet, err = ResolveTLSA(hostname, port)
+		status.Wafflef(ColorYellow("found secure CNAME pointing to insecure DNS, validating under original name: %q"), originalHostname)
+		preferredHostname = originalHostname
+		ipListIsSecure = false
+	}
+
+	// original is a CNAME if preferredHostname != originalHostname or resolvedCNAME != ""
+	// resolvedCNAME is set if the final path is insecure
+	// preferredHostname is the name to validate:
+	//   * the final hostname if secure all the way
+	//   * the original hostname if there's an insecure delegation (resolvedCNAME is set)
+
+	if preferredHostname == originalHostname && resolvedCNAME == "" {
+		status.Wafflef("found %d secure addresses for %q: %v", len(ipList), originalHostname, ipList)
+	} else {
+		var targetPrequoted string
+		if resolvedCNAME != "" {
+			targetPrequoted = strconv.Quote(resolvedCNAME) + "/..."
+		} else {
+			targetPrequoted = strconv.Quote(preferredHostname)
+		}
+		if opts.mxLookup {
+			// Being generous by not just deeming this an error; still, mark it red
+			status.Messagef(ColorRed("VIOLATION: MX hostname is a CNAME: %q -> %s"), originalHostname, targetPrequoted)
+		}
+		var nature string
+		if ipListIsSecure {
+			nature = "secure"
+		} else {
+			nature = ColorRed("INSECURE")
+		}
+		status.Wafflef("found %d %s addresses for %q at %s: %v", len(ipList), nature, originalHostname, targetPrequoted, ipList)
+	}
+
+	tlsaSet, err := ResolveTLSA(preferredHostname, port)
+	if err != nil {
+		statusErrorReportf(status, err, "error resolving TLSA for %q port %d", preferredHostname, port)
+		if originalHostname == preferredHostname {
+			return
+		}
+		tlsaSet, err = ResolveTLSA(originalHostname, port)
 		if err != nil {
-			switch e := err.(type) {
-			case *errorlist.List:
-				status.Errorf("error resolving TLSA for %q port %d:\n%s", hostname, port, e.FmtIndented())
-			default:
-				status.Errorf("error resolving TLSA for %q port %d: %v", hostname, port, err)
-			}
+			statusErrorReportf(status, err, "error resolving TLSA for pre-CNAME %q port %d", originalHostname, port)
 			return
 		}
 	}
@@ -173,7 +234,7 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 		}
 		(&validationContext{
 			tlsaSet:  tlsaSet,
-			hostname: hostname,
+			hostname: originalHostname,
 			altNames: altNames,
 			ip:       ip,
 			port:     port,
