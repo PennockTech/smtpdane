@@ -151,7 +151,7 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 
 		ipList, err = ResolveAddrINSECURE(originalHostname)
 		if err != nil || len(ipList) == 0 {
-			statusErrorReportf(status, originalErr, "error securely resolving %q", originalHostname)
+			statusErrorReportf(status, originalErr, "error insecurely resolving %q", originalHostname)
 			return
 		}
 
