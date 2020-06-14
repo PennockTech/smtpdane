@@ -10,7 +10,7 @@ smtpdane
 against bad certificates or DNS, but in real-world usage it has so far failed
 when it should.**
 
-Go 1.8+ : `go get go.pennock.tech/smtpdane`  _(but see helpers below)_
+Go 1.8+ : `go get go.pennock.tech/smtpdane`  _(optional helpers documented below)_
 
 This is an SMTP client which can connect to an SMTP server, issue `STARTTLS`
 and verify the certificate using DANE (TLSA records signed with DNSSEC).
@@ -40,6 +40,9 @@ domain.
 Go 1.8 or greater is required.  We use the
 `crypto/tls.Config.VerifyPeerCertificate` callback introduced in that release.
 
+Optionally, use `./.compile` instead of `go build` to embed extra repository
+information into the binary.
+
 ```console
 $ mkdir ~/go
 $ go get go.pennock.tech/smtpdane
@@ -50,6 +53,8 @@ The `go get` command will fetch this repo, any dependent repos and perform the
 build.  This assumes that `$GOPATH` and other Golang-controlling environment
 variables have not been set; as of Go 1.8, `~/go` is the default solitary
 entry in the `$GOPATH` list.
+
+To just download, use `go get -d`.
 
 Use `~/go/src/go.pennock.tech/smtpdane/.compile` to build with embedded
 version information from various repositories.
@@ -67,9 +72,6 @@ go build -ldflags "-linkmode external -extldflags -static"
 At this time there is no vendoring of dependencies.  If this matters in your
 environment, capture them for your use-cases.  If our dependency list grows to
 include packages with unstable APIs then this decision will be revisited.
-
-Optionally, use `./.compile` instead of `go build` to embed extra repository
-information into the binary.
 
 
 ## Invoking
