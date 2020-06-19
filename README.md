@@ -1,7 +1,7 @@
 smtpdane
 ========
 
-[![Continuous Integration](https://secure.travis-ci.org/PennockTech/smtpdane.svg?branch=master)](http://travis-ci.org/PennockTech/smtpdane)
+[![Continuous Integration](https://secure.travis-ci.org/PennockTech/smtpdane.svg?branch=main)](http://travis-ci.org/PennockTech/smtpdane)
 [![Coverage Status](https://coveralls.io/repos/github/PennockTech/smtpdane/badge.svg)](https://coveralls.io/github/PennockTech/smtpdane)
 
 **Early Beta Software**
