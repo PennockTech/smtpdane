@@ -377,7 +377,7 @@ func (vc *validationContext) checkCertInfo(cs tls.ConnectionState, chCertDetails
 	haveOCSP := cs.OCSPResponse != nil && len(cs.OCSPResponse) > 0
 
 	if opts.showCertInfo {
-		vc.Messagef("TLS session: version=%04x ciphersuite=%04x ocsp=%v", cs.Version, cs.CipherSuite, haveOCSP)
+		vc.Messagef("TLS session: version=%v ciphersuite=%v ocsp=%v", tlsVersionString(cs.Version), tls.CipherSuiteName(cs.CipherSuite), haveOCSP)
 	}
 
 	if !haveOCSP {
@@ -427,5 +427,36 @@ func (vc *validationContext) checkCertInfo(cs tls.ConnectionState, chCertDetails
 	}
 	if count == 0 {
 		vc.Errorf("Saw OCSP response but got no chain information out of validation")
+	}
+}
+
+func tlsVersionString(raw uint16) string {
+	// We handle more than just TCP or current versions, because the cost is
+	// low and seeing an unexpected version should at least report a known
+	// label so people can blink without having to use a search engine to look
+	// up 16-bit hex values.
+	switch raw {
+	// Start with Golang stdlib non-deprecated constants
+	case tls.VersionTLS13:
+		return "TLS1.3"
+	case tls.VersionTLS12:
+		return "TLS1.2"
+	case tls.VersionTLS11:
+		return "TLS1.1"
+	case tls.VersionTLS10:
+		return "TLS1.0"
+
+	// For the rest, the return value string is our code documentation.
+	case 0x0300:
+		return "SSL3.0"
+	case 0x0002:
+		return "SSL2.0"
+	case 0xFEFF:
+		return "DTLS1.0"
+	case 0xFEFD:
+		return "DTLS1.2"
+
+	default:
+		return fmt.Sprintf("%#04x", raw)
 	}
 }
