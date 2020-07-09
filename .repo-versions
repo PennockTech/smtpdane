@@ -22,7 +22,9 @@ for DEP in \
 		continue
 	fi
 	branch="$(git -C "$d" symbolic-ref --short HEAD 2>/dev/null || echo "not-on-branch")"
-	if [ ".$branch" = ".master" ]; then
+	if [ ".$branch" = ".main" ]; then
+		branch=""
+	elif [ ".$branch" = ".master" ]; then
 		branch=""
 	else
 		branch="$(printf ",%s" "$branch" | tr ' ' '\032' )"
