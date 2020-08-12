@@ -140,7 +140,8 @@ DNS_RRTYPE_LOOP:
 			for i := 0; i < config.Attempts; i++ {
 				r, _, err = c.Exchange(m, resolver)
 				if err != nil {
-					if nerr, ok := err.(net.Error); ok && nerr.Timeout() && i < config.Attempts {
+					var netError net.Error
+					if errors.As(err, &netError) && netError.Timeout() && i < config.Attempts {
 						continue
 					}
 					errList.Add(err)

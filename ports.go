@@ -8,6 +8,7 @@ package main
 // services and if not found, then fall back to using the given number.
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"regexp"
@@ -72,7 +73,8 @@ func HostnamePortFrom(spec string) (string, int, error) {
 		return h, p2, err
 	}
 
-	if _, ok := err.(*net.AddrError); ok {
+	var aErr *net.AddrError
+	if errors.As(err, &aErr) {
 		// either too many colons or missing port; assume missing port, let
 		// error out later, since there's no way to tell without string
 		// matching.
@@ -89,7 +91,8 @@ func HostnameMaybePortFrom(spec string) (string, string, error) {
 		return h, strconv.Itoa(p2), err
 	}
 
-	if _, ok := err.(*net.AddrError); ok {
+	var aErr *net.AddrError
+	if errors.As(err, &aErr) {
 		// either too many colons or missing port; assume missing port, let
 		// error out later, since there's no way to tell without string
 		// matching.
