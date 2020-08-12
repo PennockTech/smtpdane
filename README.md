@@ -4,13 +4,15 @@ smtpdane
 [![Continuous Integration](https://secure.travis-ci.org/PennockTech/smtpdane.svg?branch=main)](http://travis-ci.org/PennockTech/smtpdane)
 [![Coverage Status](https://coveralls.io/repos/github/PennockTech/smtpdane/badge.svg)](https://coveralls.io/github/PennockTech/smtpdane)
 
-**Early Beta Software**
+SMTP Service monitoring of DANE-protected services, with optional
+NAGIOS-compatible behavior.
 
-**There are not yet enough tests to be sure that this fails when it should,
-against bad certificates or DNS, but in real-world usage it has so far failed
-when it should.**
+A bit short on tests but has been used for a few years now and so far has both
+succeeded when it should and failed when it should.
 
-Go 1.8+ : `go get go.pennock.tech/smtpdane`  _(optional helpers documented below)_
+---
+
+Go 1.13+ : `go get go.pennock.tech/smtpdane`  _(optional helpers documented below)_
 
 This is an SMTP client which can connect to an SMTP server, issue `STARTTLS`
 and verify the certificate using DANE (TLSA records signed with DNSSEC).
@@ -37,22 +39,26 @@ domain.
 
 ## Installation
 
-Go 1.8 or greater is required.  We use the
-`crypto/tls.Config.VerifyPeerCertificate` callback introduced in that release.
+Go 1.13 or greater is required; the release of Go 1.15 changed how network
+errors are returned in some situations; while we didn't happen to hit those,
+it's now just a matter of time before our situation breaks too, so switched to
+the `errors.As()` replacement for interface casting, as introduced in Go 1.13.
+
+```console
+$ go get go.pennock.tech/smtpdane
+```
+
+( ~~Go 1.8 or greater is required.  We use the
+`crypto/tls.Config.VerifyPeerCertificate` callback introduced in that
+release.~~ )
 
 Optionally, use `./.compile` instead of `go build` to embed extra repository
 information into the binary.
 
-```console
-$ mkdir ~/go
-$ go get go.pennock.tech/smtpdane
-```
-
-With those install steps, the binary can be found in `~/go/bin/smtpdane`.
-The `go get` command will fetch this repo, any dependent repos and perform the
-build.  This assumes that `$GOPATH` and other Golang-controlling environment
-variables have not been set; as of Go 1.8, `~/go` is the default solitary
-entry in the `$GOPATH` list.
+With that one `go get` command, assuming no other Go environment variables set
+up to move things from defaults, the binary can be found in
+`~/go/bin/smtpdane`.  If `$GOPATH` is set, then look in `bin/` inside the
+first directory in the list given by that variable.
 
 To just download, use `go get -d`.
 
@@ -62,6 +68,7 @@ version information from various repositories.
 To build as a static binary for deployment into a lib-less environment:
 
 ```sh
+go get -d go.pennock.tech/smtpdane
 # simple
 ~/go/src/go.pennock.tech/smtpdane/.compile static
 # manual:
@@ -76,7 +83,8 @@ include packages with unstable APIs then this decision will be revisited.
 
 ## Invoking
 
-Invoke with `-help` to see help output listing known flags and defaults.
+Invoke with `-help` to see help output listing known flags and defaults.  
+See the examples below which make it clear how simple it normally is.
 
 Most commonly: `smtpdane -mx my-domain.example.org`
 
@@ -122,6 +130,10 @@ smtpdane mx1.example.org
 # Regular lookup of a domain; check every MX, every address:
 smtpdane -mx example.org
 
+# Be invoked for Nagios monitoring, with terse output, no color codes,
+# avoiding stderr, but checking for OCSP (& DANE) on all MX servers
+smtpdane -nagios -expect-ocsp -mx example.org
+
 # Regular lookup of SMTP Submission for a domain:
 smtpdane -submission example.org
 
@@ -136,7 +148,7 @@ smtpdane -4 -port 26 mx1.example.org
 # good to add the newer _submissions._tcp SRV records too:
 smtpdane -tls-on-connect -submission example.org:465
 
-# Also try checking another hostname
+# When verifying the certificate, add a different allowed hostname
 smtpdane -aka mail.example.net mail.example.org
 
 # See much more information about the certs
@@ -149,10 +161,6 @@ smtpdane -expiration-warning $((3*31*24))h -mx example.org
 
 # Turn missing OCSP stapling information into an error
 smtpdane -expect-ocsp -mx example.org
-
-# Be invoked for Nagios monitoring, with terse output, no color codes,
-# avoiding stderr, but checking for OCSP (& DANE) on all MX servers
-smtpdane -nagios -expect-ocsp -mx example.org
 ```
 
 Note that the `-aka` names are added to the list of "acceptable" names; you'll

@@ -1,9 +1,9 @@
-// Copyright © 2017 Pennock Tech, LLC.
+// Copyright © 2017,2020 Pennock Tech, LLC.
 // All rights reserved, except as granted under license.
 // Licensed per file LICENSE.txt
 
-// +build !go1.8
+// +build !go1.13
 
 package main
 
-func main() { youNeed_Go_1_8_orNewer() }
+func main() { youNeed_Go_1_13_orNewer() }
