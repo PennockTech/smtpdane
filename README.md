@@ -53,7 +53,7 @@ $ go get go.pennock.tech/smtpdane
 release.~~ )
 
 Optionally, use `./.compile` instead of `go build` to embed extra repository
-information into the binary.
+information into the binary, but this is less necessary with Go Modules.
 
 With that one `go get` command, assuming no other Go environment variables set
 up to move things from defaults, the binary can be found in
@@ -61,9 +61,6 @@ up to move things from defaults, the binary can be found in
 first directory in the list given by that variable.
 
 To just download, use `go get -d`.
-
-Use `~/go/src/go.pennock.tech/smtpdane/.compile` to build with embedded
-version information from various repositories.
 
 To build as a static binary for deployment into a lib-less environment:
 

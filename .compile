@@ -25,7 +25,5 @@ fi
 # of escaping.
 ver_varname='main.VersionString'
 ver_value="$(git -C "$dir" describe --always --dirty --tags)"
-repo_varname='main.RepoVersionString'
-repo_versions="$("$dir/.repo-versions")"
 
-"${GO_CMD:-go}" "${subcmd}" -ldflags "-X ${ver_varname}=${ver_value} -X ${repo_varname}=${repo_versions} ${StaticFlags}" "$@"
+"${GO_CMD:-go}" "${subcmd}" -ldflags "-X ${ver_varname}=${ver_value} ${StaticFlags}" "$@"

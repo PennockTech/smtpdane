@@ -1,4 +1,4 @@
-// Copyright © 2017 Pennock Tech, LLC.
+// Copyright © 2017,2020 Pennock Tech, LLC.
 // All rights reserved, except as granted under license.
 // Licensed per file LICENSE.txt
 
@@ -7,35 +7,67 @@ package main
 import (
 	"fmt"
 	"runtime"
-	"strings"
+	"runtime/debug"
 )
 
-const programName = "smtpdane"
+const ProjectName = "smtpdane"
 
 // may be updated by the linker on the link command-line when compiling
-var VersionString string = "0.3.3"
-
-// may be updated by the linker on the link command-line when compiling
-var RepoVersionString string = ""
+var Version string = "0.3.4"
 
 func version() {
-	fmt.Printf("%s: Version %s\n", programName, VersionString)
-	fmt.Printf("%s: Golang: Runtime: %s\n", programName, runtime.Version())
+	fmt.Printf("%s version %s\n", ProjectName, Version)
+	fmt.Printf("%s: Golang: Runtime: %s\n", ProjectName, runtime.Version())
 
-	if RepoVersionString != "" {
-		// Linker cmdline hack: use Unit Separator US (0x1F) within Record Separator terminated records (RS, 0x1E)
-		// And whitespace replaced with Substitute (0x1A)
-		for _, l := range strings.Split(RepoVersionString, "\x1E") {
-			if l != "" {
-				l = strings.Replace(l, "\x1A", " ", -1)
-				units := strings.SplitN(l, "\x1F", 2)
-				if len(units) == 1 {
-					units = append(units, "<unknown>")
-				}
-				fmt.Printf("%s: repo %q: %q\n", programName, units[0], units[1])
-			}
+	buildInfo, ok := debug.ReadBuildInfo()
+	if !ok {
+		fmt.Printf("%s: no repo version details available\n", ProjectName)
+		return
+	}
+
+	type versionLine struct {
+		path, version, sum string
+		replaced           bool
+	}
+	lines := make([]versionLine, 0, 10)
+	addVersion := func(p, v, sum string, replaced bool) {
+		lines = append(lines, versionLine{p, v, sum, replaced})
+	}
+
+	m := &buildInfo.Main
+	topVersion := m.Version
+	if Version != "" {
+		topVersion = Version
+	}
+	addVersion(m.Path, topVersion, m.Sum, m.Replace != nil)
+	for m.Replace != nil {
+		m = m.Replace
+		addVersion(m.Path, m.Version, m.Sum, m.Replace != nil)
+	}
+
+	for _, m := range buildInfo.Deps {
+		addVersion(m.Path, m.Version, m.Sum, m.Replace != nil)
+		for m.Replace != nil {
+			m = m.Replace
+			addVersion(m.Path, m.Version, m.Sum, m.Replace != nil)
 		}
-	} else {
-		fmt.Printf("%s: no repo version details available\n", programName)
+	}
+
+	headers := []string{"Path", "Version", "Checksum", "Replaced"}
+	maxP, maxV, maxS := len(headers[0]), len(headers[1]), len(headers[2])
+	for _, l := range lines {
+		if len(l.path) > maxP {
+			maxP = len(l.path)
+		}
+		if len(l.version) > maxV {
+			maxV = len(l.version)
+		}
+		if len(l.sum) > maxS {
+			maxS = len(l.sum)
+		}
+	}
+	fmt.Printf("%-*s %-*s %-*s %s\n", maxP, headers[0], maxV, headers[1], maxS, headers[2], headers[3])
+	for _, l := range lines {
+		fmt.Printf("%-*s %-*s %-*s %v\n", maxP, l.path, maxV, l.version, maxS, l.sum, l.replaced)
 	}
 }
