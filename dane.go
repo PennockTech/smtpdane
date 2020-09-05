@@ -8,6 +8,7 @@ package main
 
 import (
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"strconv"
@@ -169,19 +170,32 @@ func (vc *validationContext) showCertChainInfo(cert1 *x509.Certificate, certs ..
 		}
 	}
 
+	if opts.showCerts {
+		pemData := make([]byte, 0, 100*70*len(certPtrList))
+		for ci, c := range certPtrList {
+			pemData = append(pemData, []byte(fmt.Sprintf("# [%d] CN=%s\n", ci+1, strconv.QuoteToGraphic(c.Subject.CommonName)))...)
+			pemData = append(pemData, pem.EncodeToMemory(&pem.Block{
+				Type:  "CERTIFICATE",
+				Bytes: c.Raw,
+			})...)
+		}
+		vc.Messagef("Certificate PEM chain of %d certs:\n%s", len(certPtrList), pemData)
+	}
+
 	if !opts.showCertInfo {
 		return
 	}
 
 	// certPtrList[ci].PublicKeyAlgorithm has no .String(), alas
 
-	const LinesPerCert = 4
+	const LinesPerCert = 5
 	lines := make([]string, len(certPtrList)*LinesPerCert)
 	for ci, c := range certPtrList {
 		lines[ci*LinesPerCert+0] = fmt.Sprintf("  [%d] CN=%s", ci+1, strconv.QuoteToGraphic(c.Subject.CommonName))
-		lines[ci*LinesPerCert+1] = fmt.Sprintf("\tSAN: %v %v", c.DNSNames, c.IPAddresses)
-		lines[ci*LinesPerCert+2] = fmt.Sprintf("\tValid: %v - %v", c.NotBefore, c.NotAfter)
-		lines[ci*LinesPerCert+3] = fmt.Sprintf("\tSerial=%v SignedWith: %v", c.SerialNumber, c.SignatureAlgorithm)
+		lines[ci*LinesPerCert+1] = fmt.Sprintf("\tDN: %s", strconv.QuoteToGraphic(c.Subject.String()))
+		lines[ci*LinesPerCert+2] = fmt.Sprintf("\tSAN: %v %v", c.DNSNames, c.IPAddresses)
+		lines[ci*LinesPerCert+3] = fmt.Sprintf("\tValid: %v - %v", c.NotBefore, c.NotAfter)
+		lines[ci*LinesPerCert+4] = fmt.Sprintf("\tSerial=%v SignedWith: %v", c.SerialNumber, c.SignatureAlgorithm)
 	}
 
 	vc.Messagef("Certificate chain of %d certs:\n%s", len(certPtrList), strings.Join(lines, "\n"))

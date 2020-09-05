@@ -35,6 +35,7 @@ var opts struct {
 	onlyIPv6          bool
 	quiet             bool
 	showCertInfo      bool
+	showCerts         bool
 	showVersion       bool
 	srvTCPLookup      string
 	submissionLookup  bool
