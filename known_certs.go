@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/miekg/dns"
 )
@@ -112,8 +113,15 @@ func (k *knownCAt) NameForTLSA(t *dns.TLSA) (string, bool) {
 
 func (k *knownCAt) AddOneCert(cert *x509.Certificate) {
 	var label string
+	const MIN_SENSIBLE_LEN = 5
+	// This logic pre-dates Golang stdlib gaining .String() on the DN
+	// I _like_ the conciseness though, so I'm trying to make it last a little longer.
 	if len(cert.Subject.CommonName) > 0 {
 		label = cert.Subject.CommonName
+		if len(label) < MIN_SENSIBLE_LEN && len(cert.Subject.Organization) > 0 {
+			// Let's Encrypt at R3/R4/E1/E2 time (2020) switched to minimize the CN and using the O field
+			label = strings.Join(cert.Subject.Organization, ", ") + " // " + label
+		}
 	} else if len(cert.DNSNames) > 0 {
 		label = cert.DNSNames[0]
 	} else if len(cert.Subject.Country) > 0 && len(cert.Subject.Organization) > 0 {
@@ -122,8 +130,13 @@ func (k *knownCAt) AddOneCert(cert *x509.Certificate) {
 			label += " " + cert.Subject.OrganizationalUnit[0]
 		}
 	} else {
-		// fmt.Printf("unable to get name for cert: %#v\n", cert.Subject)
-		return
+		label = cert.Subject.String()
+	}
+	if len(label) < MIN_SENSIBLE_LEN {
+		t := cert.Subject.String()
+		if len(t) >= MIN_SENSIBLE_LEN {
+			label = t
+		}
 	}
 
 	for selector := uint8(0); selector <= 1; selector++ {
