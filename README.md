@@ -12,7 +12,7 @@ succeeded when it should and failed when it should.
 
 ---
 
-Go 1.13+ : `go get go.pennock.tech/smtpdane`  _(optional helpers documented below)_
+Go 1.14+ : `go get go.pennock.tech/smtpdane`  _(optional helpers documented below)_
 
 This is an SMTP client which can connect to an SMTP server, issue `STARTTLS`
 and verify the certificate using DANE (TLSA records signed with DNSSEC).
@@ -39,10 +39,11 @@ domain.
 
 ## Installation
 
-Go 1.13 or greater is required; the release of Go 1.15 changed how network
+Go 1.14 or greater is required; the release of Go 1.15 changed how network
 errors are returned in some situations; while we didn't happen to hit those,
 it's now just a matter of time before our situation breaks too, so switched to
 the `errors.As()` replacement for interface casting, as introduced in Go 1.13.
+We use `tls.CipherSuiteName()` from Go 1.14 for better diagnostics.
 
 ```console
 $ go get go.pennock.tech/smtpdane
