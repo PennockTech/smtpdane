@@ -7,12 +7,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"sync"
+	"time"
 
 	"go.pennock.tech/smtpdane/internal/errorlist"
 
@@ -49,10 +51,14 @@ func initDNS() (*dns.ClientConfig, *dns.Client, error) {
 		if err != nil {
 			return nil, nil, err
 		}
+		if conf.Attempts < 3 {
+			conf.Attempts = 3
+		}
 	} else {
 		// we now use the config always, for things like timeouts,
 		// so construct a skeletal one
 		conf = &dns.ClientConfig{
+			Timeout:  5,
 			Attempts: 3,
 		}
 	}
@@ -142,6 +148,7 @@ DNS_RRTYPE_LOOP:
 				if err != nil {
 					var netError net.Error
 					if errors.As(err, &netError) && netError.Timeout() && i < config.Attempts {
+						time.Sleep(retryJitter((2 << i) * time.Second))
 						continue
 					}
 					errList.Add(err)
@@ -503,4 +510,11 @@ func ResolveCNAME(lookup string) (string, error) {
 		return resolvedName, nil
 	}
 	panic("should not have reached here, resolveRRSecure should have errored instead")
+}
+
+func retryJitter(base time.Duration) time.Duration {
+	b := float64(base)
+	// 10% +/-
+	offsetFactor := rand.Float64()*0.2 - 0.1
+	return time.Duration(b + offsetFactor*b)
 }

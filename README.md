@@ -78,6 +78,12 @@ At this time there is no vendoring of dependencies.  If this matters in your
 environment, capture them for your use-cases.  If our dependency list grows to
 include packages with unstable APIs then this decision will be revisited.
 
+Our version numbering is semantic, with the caveat that Go only supports
+the latest two minor versions of the toolsuite, and PennockTech does not
+consider it a breaking change to add a dependency upon a stdlib feature which
+is present in all releases of Go which are currently supported by the Go
+language maintainers.
+
 
 ## Invoking
 
