@@ -155,6 +155,9 @@ DNS_RRTYPE_LOOP:
 					r = nil
 					continue DNS_RESOLVER_LOOP
 				}
+				if r != nil {
+					break
+				}
 			}
 
 			if r == nil {
