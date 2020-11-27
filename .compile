@@ -23,7 +23,7 @@ fi
 # We trust our own tag names to be safe, not including whitespace etc, but not
 # those of repos we don't control, thus the .repo-versions script does a bunch
 # of escaping.
-ver_varname='main.VersionString'
+ver_varname='main.Version'
 ver_value="$(git -C "$dir" describe --always --dirty --tags)"
 
 "${GO_CMD:-go}" "${subcmd}" -ldflags "-X ${ver_varname}=${ver_value} ${StaticFlags}" "$@"

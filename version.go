@@ -13,7 +13,7 @@ import (
 const ProjectName = "smtpdane"
 
 // may be updated by the linker on the link command-line when compiling
-var Version string = "0.4.1"
+var Version string = "0.4.1-dev"
 
 func version() {
 	fmt.Printf("%s version %s\n", ProjectName, Version)

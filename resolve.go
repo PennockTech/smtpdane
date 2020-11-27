@@ -144,11 +144,13 @@ DNS_RRTYPE_LOOP:
 			c.Net = "udp"
 		RETRY_DNS_LOOKUP:
 			for i := 0; i < config.Attempts; i++ {
+				if i > 0 {
+					time.Sleep(retryJitter((2 << (i - 1)) * time.Second))
+				}
 				r, _, err = c.Exchange(m, resolver)
 				if err != nil {
 					var netError net.Error
-					if errors.As(err, &netError) && netError.Timeout() && i < config.Attempts {
-						time.Sleep(retryJitter((2 << i) * time.Second))
+					if errors.As(err, &netError) && netError.Timeout() {
 						continue
 					}
 					errList.Add(err)
