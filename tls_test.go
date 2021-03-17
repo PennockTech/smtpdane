@@ -145,7 +145,7 @@ func newTestSMTPServer(t *testing.T, hostname string, tlsOnConnect bool) net.Con
 				if err := c.Close(); err != nil {
 					t.Errorf("svr failed to close connection: %s", err)
 				}
-				t.Fatalf("unrecognized command: %q", s.Text())
+				t.Errorf("unrecognized command: %q", s.Text())
 			}
 		}
 		t.Log("lost connection without QUIT?")

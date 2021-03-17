@@ -244,6 +244,7 @@ func cbRRTypeAddr(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
 		if ip, ok := rr.(*dns.A); ok {
 			return addrRecord{ip.A, rr.Header().Name}, nil
 		} else {
+			//lint:ignore ST1005 this is not capitalized, it's an "A" record
 			return nil, fmt.Errorf("A record failed to cast to *dns.A [%q/%v]", rrname, dns.Type(typ))
 		}
 	case dns.TypeAAAA:

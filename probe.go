@@ -330,7 +330,6 @@ func (vc *validationContext) probeConnectedAddr(conn net.Conn) {
 	if err != nil {
 		vc.Errorf("QUIT failed: %s", err)
 	}
-	return
 }
 
 func (vc *validationContext) tryTLSOnConn(conn net.Conn, tlsConfig *tls.Config, chCertDetails <-chan certDetails) {
@@ -348,24 +347,31 @@ func (vc *validationContext) tryTLSOnConn(conn net.Conn, tlsConfig *tls.Config, 
 	vc.checkCertInfo(c.ConnectionState(), chCertDetails)
 
 	id, err := t.Cmd("EHLO %s", vc.hostname)
-	t.StartResponse(id)
-	_, _, err = t.ReadResponse(250)
-	t.EndResponse(id)
+	if err == nil {
+		t.StartResponse(id)
+		_, _, err = t.ReadResponse(250)
+		t.EndResponse(id)
+	}
 	if err != nil {
-		vc.Errorf("EHLO failed: %s", err)
+		vc.Errorf("EHLO failed: %v", err)
+		// We don't error here because the server might only support HELO and
+		// we still want to QUIT.
 	}
 
 	id, err = t.Cmd("QUIT")
-	t.StartResponse(id)
-	_, _, err = t.ReadResponse(221)
-	t.EndResponse(id)
+	if err == nil {
+		t.StartResponse(id)
+		_, _, err = t.ReadResponse(221)
+		t.EndResponse(id)
+	}
 	if err != nil {
-		vc.Errorf("QUIT failed: %s", err)
+		vc.Errorf("QUIT failed: %v", err)
 	}
 
 	// When speaking to OpenSSL servers, we shut down cleanly without grabbing
 	// the EOF first, but when speaking to Golang TLS, that fails us.
-	_, err = t.ReadLine()
+	// We don't care if this fails.
+	_, _ = t.ReadLine()
 
 	t.Close()
 }
