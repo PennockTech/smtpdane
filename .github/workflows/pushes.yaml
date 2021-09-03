@@ -1,0 +1,129 @@
+name: Actions CI
+# This `name:` is used in the badge.svg rendering in the README.md.
+
+on:
+  push:
+    branches-ignore:
+      - 'exp'
+      - 'exp/*'
+      - 'exp-*'
+      - 'exp_*'
+      - 'wip'
+      - 'wip/*'
+      - 'wip-*'
+      - 'wip_*'
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - go: '1.17.x'
+            canonical: true
+          - go: '1.16.x'
+            canonical: false
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+
+      - id: go-settings
+        name: Export Go environment to Actions outputs
+        run: |
+          echo "::set-output name=arch::$(go env GOARCH)"
+          echo "::set-output name=hostarch::$(go env GOHOSTARCH)"
+          echo "::set-output name=os::$(go env GOOS)"
+          echo "::set-output name=hostos::$(go env GOHOSTOS)"
+          echo "::set-output name=go-version::$(go env GOVERSION)"
+        # Use with:
+        #   ${{ steps.go-settings.outputs.go-version }}
+        # which will look like `go1.17.1` if matrix `1.17.x` matches `1.17.1`.
+        # These are independent of how the matrix is setup, or if a matrix is even used.
+
+      - name: Go caches
+        uses: actions/cache@v2
+        with:
+          # (This bit copied from the actions/setup-go@v2 version)
+          # In order:
+          # * Module download cache
+          # * Build cache (Linux)
+          # * Build cache (Mac)
+          # * Build cache (Windows)
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/Library/Caches/go-build
+            %LocalAppData%\go-build
+          # (These bits locally modified:)
+          key: ${{ runner.os }}-${{ steps.go-settings.outputs.go-version }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.go-settings.outputs.go-version }}-
+          # In theory, the caches are nowadays multi-version safe.
+          # In practice, some releases break that; users end up needing to run: go clean --modcache
+          # But we can't do that, so we just play it safe and accept that the cache is cleaned when the version of Go changes.
+
+      - name: Download all Go dependencies
+        # nb: `go mod download` is heavyweight and extends beyond the actual dependencies
+        run: |
+          go list all
+
+      - name: Version / Environment Reporting
+        run: |
+          ./build/show.versions
+
+      - name: Basic Go integrity checks
+        run: |
+          t="$(gofmt -s -l .)"
+          if [ ".$t" != "." ]; then printf 'gofmt would modify files:\n%s\n' "$t"; exit 1; fi
+          go vet ./...
+          t="$(go list -m -retracted -f '{{if .Retracted}}::error file=go.mod::{{.Path}} is retracted{{end}}' all)"
+          if [ ".$t" != "." ]; then printf '%s\n' "$t"; exit 1; fi
+        if: matrix.canonical
+
+# This doesn't actually invoke static checks unless in a pull-request
+# Leaving present-but-commented-out as an easy reference.
+#     - name: Go static checks
+#       uses: reviewdog/action-staticcheck@v1
+#       with:
+#         filter_mode: nofilter
+#         fail_on_error: true
+#       if: matrix.canonical
+
+      - name: Go build & test
+        run: |
+          go build ./...
+          go test -v -coverprofile=${{ runner.temp }}/profile.cov ./...
+
+      - name: Send coverage
+        uses: shogo82148/actions-goveralls@v1
+        with:
+          path-to-profile: ${{ runner.temp }}/profile.cov
+          flag-name: Go-${{ matrix.go }}
+          parallel: true
+
+
+  finish:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: coveralls.io completion notification
+        uses: shogo82148/actions-goveralls@v1
+        with:
+          parallel-finished: true
+
+      - name: Notify PT Slack
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_PT_AUTOBUILDS }}
+
