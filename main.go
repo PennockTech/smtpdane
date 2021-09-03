@@ -12,6 +12,7 @@
 // code-hosting site not under our direct control.  We keep our options open,
 // for moving where we keep the code publicly available.
 
+//go:build go1.8
 // +build go1.8
 
 package main

@@ -1,8 +1,8 @@
 smtpdane
 ========
 
-[![Continuous Integration](https://secure.travis-ci.org/PennockTech/smtpdane.svg?branch=main)](http://travis-ci.org/PennockTech/smtpdane)
-[![Coverage Status](https://coveralls.io/repos/github/PennockTech/smtpdane/badge.svg)](https://coveralls.io/github/PennockTech/smtpdane)
+[![Continuous Integration](https://github.com/PennockTech/smtpdane/actions/workflows/pushes.yaml/badge.svg)](https://github.com/PennockTech/smtpdane/actions/workflows/pushes.yaml)
+[![Coverage Status](https://coveralls.io/repos/github/PennockTech/smtpdane/badge.svg?branch=main)](https://coveralls.io/github/PennockTech/smtpdane?branch=main)
 
 SMTP Service monitoring of DANE-protected services, with optional
 NAGIOS-compatible behavior.
