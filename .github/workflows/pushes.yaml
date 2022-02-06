@@ -34,14 +34,18 @@ jobs:
         include:
           - go: '1.17.x'
             canonical: true
+            # hunspell requires at least Go 1.17
+            spellcheck: true
           - go: '1.16.x'
             canonical: false
+            spellcheck: false
 
     steps:
 
       - name: Install OS packages
         run: |
           sudo apt-get -q -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" install -y libhunspell-dev hunspell-en-us
+        if: matrix.spellcheck
 
       - name: Checkout
         uses: actions/checkout@v2
@@ -96,6 +100,7 @@ jobs:
       - name: Install additional check/lint tools
         run: |
           go install github.com/kortschak/gospel@latest
+        if: matrix.spellcheck
 
       - name: Version / Environment Reporting
         run: |
@@ -108,9 +113,12 @@ jobs:
           go vet ./...
           t="$(go list -m -retracted -f '{{if .Retracted}}::error file=go.mod::{{.Path}} is retracted{{end}}' all)"
           if [ ".$t" != "." ]; then printf '%s\n' "$t"; exit 1; fi
+
+      - name: Spelling checks
+        run: |
           t="$(gospel .)"
           if [ ".$t" != "." ]; then printf 'gospel found spelling issues:\n%s\n' "$t"; exit 1; fi
-        if: matrix.canonical
+        if: matrix.spellcheck
 
 # This doesn't actually invoke static checks unless in a pull-request
 # Leaving present-but-commented-out as an easy reference.
