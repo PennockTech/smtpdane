@@ -1,6 +1,18 @@
 name: Actions CI
 # This `name:` is used in the badge.svg rendering in the README.md.
 
+permissions:
+  # Control the GITHUB_TOKEN permissions.
+  # By having this block, all permissions not listed here are set to none.
+  # Available permissions listed at:
+  #   <https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token>
+  # Which API calls need which permissions at what level, listed at:
+  #   <https://docs.github.com/en/rest/reference/permissions-required-for-github-apps>
+  #
+  contents: read
+  checks: write
+  statuses: write
+
 on:
   push:
     branches-ignore:
@@ -26,6 +38,10 @@ jobs:
             canonical: false
 
     steps:
+
+      - name: Install OS packages
+        run: |
+          sudo apt-get -q -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" install -y libhunspell-dev hunspell-en-us
 
       - name: Checkout
         uses: actions/checkout@v2
