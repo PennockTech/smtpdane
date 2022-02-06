@@ -77,6 +77,10 @@ jobs:
         run: |
           go list all
 
+      - name: Install additional check/lint tools
+        run: |
+          go install github.com/kortschak/gospel@latest
+
       - name: Version / Environment Reporting
         run: |
           ./build/show.versions
@@ -88,6 +92,8 @@ jobs:
           go vet ./...
           t="$(go list -m -retracted -f '{{if .Retracted}}::error file=go.mod::{{.Path}} is retracted{{end}}' all)"
           if [ ".$t" != "." ]; then printf '%s\n' "$t"; exit 1; fi
+          t="$(gospel .)"
+          if [ ".$t" != "." ]; then printf 'gospel found spelling issues:\n%s\n' "$t"; exit 1; fi
         if: matrix.canonical
 
 # This doesn't actually invoke static checks unless in a pull-request
