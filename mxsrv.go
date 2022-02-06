@@ -98,7 +98,7 @@ func probeSRV(srvName, domainSpec string, status *programStatus) {
 
 	seen := make(map[string]struct{}, len(srvList))
 	for _, srv := range srvList {
-		// There might be two different ports in SRV, but if we've overriden the port
+		// There might be two different ports in SRV, but if we've overridden the port
 		// then this becomes a dup because of us, not DNS; we still skip the dup.
 		//
 		// We ignore weight & priority because we check them all, in parallel.

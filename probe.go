@@ -18,7 +18,7 @@ import (
 	"time"
 
 	// Hash algorithms to be available for validation; any not in stdlib
-	// should be optional and not here, but in a build-tag-constrainted file
+	// should be optional and not here, but in a build-tag-constraint'ed file
 	// which just does the import so that crypto.RegisterHash() is called.
 	// Those needed for TLS:
 	//   <https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-18>
@@ -112,7 +112,7 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 	//  mx1.secure.example
 	//    -CNAME-> foo.secure.example
 	//    -CNAME-> bar.insecure.example
-	//    -CNAME-> baz.irrelvant.example     OR -A-> frob.secure-again.example
+	//    -CNAME-> baz.irrelevant.example     OR -A-> frob.secure-again.example
 	//    -A->     192.0.2.10
 	//
 	//  mx2.secure.example

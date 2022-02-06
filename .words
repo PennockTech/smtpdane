@@ -1,0 +1,150 @@
+70
+
+## This project
+fingerd
+
+## Human names
+Pennock
+pennock
+Viktor
+
+## Package-specific conceptual terms used in documentation, hypotheticals etc
+
+## Symbols from other packages used in comments but not in code
+AppendCertsFromPEM
+CertPool
+cert_pool
+cryptlib
+crypto
+DialTCP
+IsFqdn
+Printf
+PublicKeyAlgorithm
+RegisterHash
+ResponseError
+RR_Header
+TryLater
+
+## Tech abuse of English
+auth/S
+conf
+config/S
+decr
+demultiplex/DGRS
+dir/S
+incr
+lookups
+nocolor
+num/S
+PKI
+pki
+priv/S
+respawn/DGS
+signalled
+unshare/DS
+
+foo
+bar
+baz
+foobar
+frob
+
+## Common terms in (Go) development
+automount/S
+configmap/S
+env/S
+environ/S
+fd_unix
+filesystem/S
+golint
+homedir/S
+hostname/S
+hostnames
+jitter/CGS
+middleware/S
+namespace/S
+netFD
+param/S
+pidfile/S
+privkey/S
+pubkey/S
+semver
+slowloris
+stdlib
+syscall/S
+userid/S
+uuid/S
+waitgroup/S
+webserver/S
+ztypes_
+
+## Terms I looked up to find the consensus tech spelling
+loggable
+
+## Unix commands and terms
+chmod
+dup
+fgrep
+passwd
+proc
+s_client
+setuid
+sysctl
+
+## OSes, Filetypes, etc
+CentOS
+FreeBSD
+OpenELEC
+OpenSUSE
+IANA
+iana
+IPv4
+IPv6
+v0
+v1
+v2
+v3
+v4
+v5
+v6
+html
+md
+txt
+xhtml
+www
+
+## Commands, software packages (non-Go)
+ca_root_nss
+Nagios
+nagios
+OpenSSL
+openssl
+
+## Other tools and packages
+codahale
+logstash
+memstats
+sirupsen
+staticcheck
+
+## Other English dialects
+colour
+hinky/P
+humour
+iff
+## Other languages leaking in (eg, Dutch acronyms)
+ipv
+
+## Units and abuse of numbers
+go1
+go2
+2ms
+mx1
+mx2
+nozz
+
+## Style guide of "e.g." is too ancient, etc.
+eg
+nb
+pre
+rfcFOO
