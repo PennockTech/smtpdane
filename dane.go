@@ -140,7 +140,7 @@ func (vc *validationContext) chainValid(eeCert, anchorCert *x509.Certificate, ca
 		for i := range chains[0] {
 			ids[i] = strconv.QuoteToGraphic(chains[0][i].Subject.CommonName)
 		}
-		vc.Wafflef("%d chains to TA; first length %d, is: %v", len(chains), len(chains[0]), ids)
+		vc.Wafflef("hostname %q has %d chains to TA; first length %d, is: %v", tryHostname, len(chains), len(chains[0]), ids)
 		returnStatus = true
 	}
 
