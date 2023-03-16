@@ -13,7 +13,6 @@
 // for moving where we keep the code publicly available.
 
 //go:build go1.8
-// +build go1.8
 
 package main
 

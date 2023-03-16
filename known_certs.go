@@ -187,7 +187,7 @@ func loadKnownCAs() (known *knownCAt) {
 	}
 
 	for _, fn := range fileList {
-		data, err := ioutil.ReadFile(fn)
+		data, err := os.ReadFile(fn)
 		if err == nil {
 			ok := known.AddFromPEM(data)
 			if ok {
@@ -210,7 +210,7 @@ func loadKnownCAs() (known *knownCAt) {
 		}
 		rootsAdded := false
 		for _, fi := range fis {
-			data, err := ioutil.ReadFile(directory + "/" + fi.Name())
+			data, err := os.ReadFile(directory + "/" + fi.Name())
 			if err == nil && known.AddFromPEM(data) {
 				rootsAdded = true
 			}
