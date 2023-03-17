@@ -48,30 +48,30 @@ jobs:
         if: matrix.spellcheck
 
       - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
+        uses: actions/checkout@v3
+        # We're not using release process or version stamping which needs Git History in this workflow.
+        # Thus we do not need to set with.fetch-depth to 0.  We can live with a shallow clone.
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go }}
 
       - id: go-settings
         name: Export Go environment to Actions outputs
         run: |
-          echo "::set-output name=arch::$(go env GOARCH)"
-          echo "::set-output name=hostarch::$(go env GOHOSTARCH)"
-          echo "::set-output name=os::$(go env GOOS)"
-          echo "::set-output name=hostos::$(go env GOHOSTOS)"
-          echo "::set-output name=go-version::$(go env GOVERSION)"
+          echo >> "$GITHUB_OUTPUT" "arch=$(go env GOARCH)"
+          echo >> "$GITHUB_OUTPUT" "hostarch=$(go env GOHOSTARCH)"
+          echo >> "$GITHUB_OUTPUT" "os=$(go env GOOS)"
+          echo >> "$GITHUB_OUTPUT" "hostos=$(go env GOHOSTOS)"
+          echo >> "$GITHUB_OUTPUT" "go-version=$(go env GOVERSION)"
         # Use with:
         #   ${{ steps.go-settings.outputs.go-version }}
         # which will look like `go1.17.1` if matrix `1.17.x` matches `1.17.1`.
         # These are independent of how the matrix is setup, or if a matrix is even used.
 
       - name: Go caches
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           # (This bit copied from the actions/setup-go@v2 version)
           # In order:
