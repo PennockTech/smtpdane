@@ -19,7 +19,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -204,13 +203,13 @@ func loadKnownCAs() (known *knownCAt) {
 	}
 
 	for _, directory := range dirList {
-		fis, err := ioutil.ReadDir(directory)
+		entries, err := os.ReadDir(directory)
 		if err != nil {
 			continue
 		}
 		rootsAdded := false
-		for _, fi := range fis {
-			data, err := os.ReadFile(directory + "/" + fi.Name())
+		for _, entry := range entries {
+			data, err := os.ReadFile(directory + "/" + entry.Name())
 			if err == nil && known.AddFromPEM(data) {
 				rootsAdded = true
 			}
