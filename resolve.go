@@ -147,6 +147,7 @@ DNS_RRTYPE_LOOP:
 				if i > 0 {
 					time.Sleep(retryJitter((2 << (i - 1)) * time.Second))
 				}
+				debugf("resolver exchange %s/%s for %s %q\n", resolver, c.Net, dns.Type(typ), rrname)
 				r, _, err = c.Exchange(m, resolver)
 				if err != nil {
 					var netError net.Error
@@ -158,7 +159,7 @@ DNS_RRTYPE_LOOP:
 					continue DNS_RESOLVER_LOOP
 				}
 				if r != nil {
-					break
+					break RETRY_DNS_LOOKUP
 				}
 			}
 
@@ -185,6 +186,10 @@ DNS_RRTYPE_LOOP:
 				}
 			}
 
+			if r == nil || r.Rcode != dns.RcodeSuccess {
+				panic("expected to be evaluating DNS SUCCESS scenarios but was not")
+			}
+
 			// Check for truncation first, in case some bad servers truncate
 			// the DNSSEC data needed to be AD.
 			if r.Truncated {
@@ -197,10 +202,14 @@ DNS_RRTYPE_LOOP:
 			// Assume all our resolvers are equivalent for AD/not, so if not AD, try the
 			// next type (because some DNS servers break horribly on AAAA).
 			if needSecure && !r.AuthenticatedData {
-				errList.AddErrorf("not AD set for results from %v for %q/%v query", resolver, rrname, dns.Type(typ))
+				errList.AddErrorf("not AD set for results from %v for %q/%v query, skipping any remaining resolvers", resolver, rrname, dns.Type(typ))
 				r = nil
 				continue DNS_RRTYPE_LOOP
 			}
+
+			// We have successfully made a query which doesn't need us to retry,
+			// so skip the rest of the DNS resolvers.
+			break DNS_RESOLVER_LOOP
 		}
 
 		if r == nil {
