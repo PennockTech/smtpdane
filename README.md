@@ -12,7 +12,8 @@ succeeded when it should and failed when it should.
 
 ---
 
-Go 1.14+ : `go get go.pennock.tech/smtpdane`  _(optional helpers documented below)_
+`go install go.pennock.tech/smtpdane@latest`  
+_(optional helpers documented below)_
 
 This is an SMTP client which can connect to an SMTP server, issue `STARTTLS`
 and verify the certificate using DANE (TLSA records signed with DNSSEC).
@@ -45,32 +46,39 @@ it's now just a matter of time before our situation breaks too, so switched to
 the `errors.As()` replacement for interface casting, as introduced in Go 1.13.
 We use `tls.CipherSuiteName()` from Go 1.14 for better diagnostics.
 
-```console
-$ go get go.pennock.tech/smtpdane
-```
-
 ( ~~Go 1.8 or greater is required.  We use the
 `crypto/tls.Config.VerifyPeerCertificate` callback introduced in that
 release.~~ )
 
+If not cloned as a repo:
+
+```console
+$ go install go.pennock.tech/smtpdane@latest
+```
+
+If cloned as a repo, so your shell cwd is inside this repo:
+
+```console
+$ go build .
+```
+
 Optionally, use `./.compile` instead of `go build` to embed extra repository
 information into the binary, but this is less necessary with Go Modules.
 
-With that one `go get` command, assuming no other Go environment variables set
-up to move things from defaults, the binary can be found in
+With that one `go install` command, assuming no other Go environment variables
+set up to move things from defaults, the binary can be found in
 `~/go/bin/smtpdane`.  If `$GOPATH` is set, then look in `bin/` inside the
 first directory in the list given by that variable.
-
-To just download, use `go get -d`.
 
 To build as a static binary for deployment into a lib-less environment:
 
 ```sh
-go get -d go.pennock.tech/smtpdane
+# the current VCS hosting service is subject to change:
+git clone https://github.com/PennockTech/smtpdane
+cd smtpdane
 # simple
-~/go/src/go.pennock.tech/smtpdane/.compile static
+./.compile static
 # manual:
-cd /go/src/go.pennock.tech/smtpdane
 go build -ldflags "-linkmode external -extldflags -static"
 ```
 
@@ -112,6 +120,10 @@ forcing on the `-tls-on-connect` option.
 The port can be included with the host in the usual `:1234` suffix notation;
 if the host is an IPv6 address, either do not include a port or use the
 otherwise-optional square-brackets, thus `[2001:db8::25]:1234`.
+
+A SOCKS5 proxy can be used for establishing TCP connections (but not, at this
+time, for the DNS resolution).  Use the `-proxy-tcp` option to provide a
+`socks5://` URL for establishing the connections.
 
 By default, the `EHLO` command will supply a hostname of `smtpdane.invalid`;
 use the `-helo` flag to override that value.
@@ -165,6 +177,11 @@ smtpdane -expiration-warning $((3*31*24))h -mx example.org
 
 # Turn missing OCSP stapling information into an error
 smtpdane -expect-ocsp -mx example.org
+
+# Establish a SOCKS5 proxy connection in one terminal
+ssh -D 5678 external.host.example.net
+# Then use that proxy for the TCP connections
+smtpdane -proxy-tcp socks5://localhost:5678 -mx example.org
 ```
 
 Note that the `-aka` names are added to the list of "acceptable" names; you'll
@@ -217,6 +234,8 @@ that's a documentation bug, please report it.
    (587 and 465 are common choices).
    + Ports can be supplied on the command-line, or via SRV records if invoked
      with `-srv`
+   + If using `-proxy-tcp` then access to whichever host/port is specified
+     there.
 3. Stdio, ability to write to stdout/stderr.
 4. `/etc/resolv.conf`
    + If the `DNS_RESOLVER` environment variable is set, it's used for
