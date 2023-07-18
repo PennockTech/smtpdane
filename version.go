@@ -14,7 +14,7 @@ const ProjectName = "smtpdane"
 
 // may be updated by the linker on the link command-line when compiling
 var (
-	Version     string = "0.5.1-dev"
+	Version     string = "0.5.1"
 	Commit             = ""
 	CompileDate        = ""
 	BuiltBy            = ""
