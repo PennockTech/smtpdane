@@ -7,11 +7,13 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
 	"net/smtp"
 	"net/textproto"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +28,7 @@ import (
 	_ "crypto/sha512"
 
 	"golang.org/x/crypto/ocsp"
+	"golang.org/x/net/proxy"
 
 	"go.pennock.tech/smtpdane/internal/errorlist"
 )
@@ -36,6 +39,7 @@ type validationContext struct {
 	altNames []string
 	ip       net.IP
 	port     int
+	proxytcp string
 	status   *programStatus
 	time     time.Time
 }
@@ -232,6 +236,8 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 		if opts.onlyIPv6 && ip.To4() != nil {
 			continue
 		}
+		// TODO: consider if we want DNS resolution to happen via proxy too
+		// which would affect all the logic above
 		(&validationContext{
 			tlsaSet:  tlsaSet,
 			hostname: originalHostname,
@@ -239,6 +245,7 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 			ip:       ip,
 			port:     port,
 			status:   status,
+			proxytcp: opts.proxyTCP,
 			time:     time.Now(),
 		}).probeAddrGo()
 	}
@@ -246,7 +253,11 @@ func probeHost(hostSpec string, status *programStatus, otherValidNames ...string
 
 func (vc *validationContext) probeAddrGo() {
 	vc.status.probing.Add(1)
-	vc.status = vc.status.ChildBatcher("probeAddr", vc.ip.String())
+	mesg := vc.ip.String()
+	if vc.proxytcp != "" {
+		mesg += " via " + strconv.Quote(vc.proxytcp)
+	}
+	vc.status = vc.status.ChildBatcher("probeAddr", mesg)
 	go vc.probeAddr()
 }
 
@@ -255,6 +266,11 @@ func (vc *validationContext) probeAddr() {
 	// sense, because it needs to be created before the parent calls
 	// BatchFinished and closes things on us because of a lack of children.
 	defer vc.status.BatchFinished()
+
+	if vc.proxytcp != "" {
+		vc.probeProxiedAddr()
+		return
+	}
 
 	// DialTCP takes the vc.ip/vc.port sensibly, but the moment we want timeout
 	// control, we need to go through a function which wants us to join them
@@ -276,6 +292,37 @@ func (vc *validationContext) probeAddr() {
 
 	// split out into a separate function which can be invoked by testing
 	// utilities on a pre-established connection.
+	vc.probeConnectedAddr(conn)
+}
+
+func (vc *validationContext) probeProxiedAddr() {
+	// The vc.status.BatchFinished() deferral should already have been done by our caller.
+	u, err := url.Parse(vc.proxytcp)
+	if err != nil {
+		vc.status.Errorf("proxy URL parse failed: %s", err)
+		return
+	}
+	dialer, err := proxy.FromURL(u, proxy.Direct)
+	if err != nil {
+		vc.status.Errorf("proxy setup (via %q) failed: %s", vc.proxytcp, err)
+		return
+	}
+	ctxDialer, ok := dialer.(proxy.ContextDialer)
+	if !ok {
+		vc.status.Errorf("proxy %q dialer is not a context dialer, CODE BUG", vc.proxytcp)
+		return
+	}
+
+	raddr := net.JoinHostPort(vc.ip.String(), strconv.Itoa(vc.port))
+	ctx, ctxCancel := context.WithTimeout(context.Background(), opts.connectTimeout)
+	defer ctxCancel()
+
+	conn, err := ctxDialer.DialContext(ctx, "tcp", raddr)
+	if err != nil {
+		vc.status.Errorf("proxy(%q) dial %q failed: %s", vc.proxytcp, raddr, err)
+		return
+	}
+
 	vc.probeConnectedAddr(conn)
 }
 

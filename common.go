@@ -33,6 +33,7 @@ var opts struct {
 	noColor           bool
 	onlyIPv4          bool
 	onlyIPv6          bool
+	proxyTCP          string
 	quiet             bool
 	showCertInfo      bool
 	showCerts         bool

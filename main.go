@@ -41,6 +41,7 @@ func init() {
 	flag.BoolVar(&opts.showCerts, "showcerts", false, "show PEM of certificates seen") // named to match s_client(1)
 	flag.DurationVar(&opts.expirationWarning, "expiration-warning", 168*time.Hour, "error if cert in chain this close to expiring")
 	flag.BoolVar(&opts.expectOCSP, "expect-ocsp", false, "treat missing OCSP as an error")
+	flag.StringVar(&opts.proxyTCP, "proxy-tcp", "", "use a proxy (SOCKS5) for TCP connections (not DNS resolution)")
 
 	flag.BoolVar(&opts.terse, "terse", false, "terse output")
 	flag.BoolVar(&opts.forNagios, "nagios", false, "format output as NAGIOS plugin")
