@@ -13,10 +13,25 @@ import (
 const ProjectName = "smtpdane"
 
 // may be updated by the linker on the link command-line when compiling
-var Version string = "0.5.1-dev"
+var (
+	Version     string = "0.5.1-dev"
+	Commit             = ""
+	CompileDate        = ""
+	BuiltBy            = ""
+)
 
 func version() {
 	fmt.Printf("%s version %s\n", ProjectName, Version)
+	if Commit != "" {
+		fmt.Printf("%s commit %s\n", ProjectName, Commit)
+	}
+	if CompileDate != "" {
+		fmt.Printf("%s compile-date: %s\n", ProjectName, CompileDate)
+	}
+	if BuiltBy != "" {
+		fmt.Printf("%s built-by: %s\n", ProjectName, BuiltBy)
+	}
+
 	fmt.Printf("%s: Golang: Runtime: %s\n", ProjectName, runtime.Version())
 
 	buildInfo, ok := debug.ReadBuildInfo()

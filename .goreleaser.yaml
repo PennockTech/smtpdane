@@ -1,0 +1,63 @@
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+      - freebsd
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+    # reproducible builds:
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+    - "-trimpath"
+    # ldflags: Default is `-s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser`.
+    # We switch the .Date to .CommitDate per advice at bottom of <https://goreleaser.com/customization/build/> re reproducibility.
+    ldflags:
+    - "-s -w -X main.Version={{.Version}} -X main.Commit={{.Commit}} -X main.CompileDate={{.CommitDate}} -X main.BuiltBy=goreleaser"
+
+archives:
+  - format: tar.gz
+    wrap_in_directory: true
+    format_overrides:
+    - goos: windows
+      format: zip
+
+checksum:
+  name_template: 'SHA256SUMS'
+  algorithm: sha256
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+nfpms:
+  - file_name_template: 'smtpdane-{{.Version}}-{{.Arch}}{{if .Arm}}{{.Arm}}{{end}}'
+    homepage:  https://go.pennock.tech/smtpdane
+    description: SMTP DANE Tester
+    maintainer: Phil Pennock <phil@pennock-tech.com>
+    license: MIT
+    vendor: Pennock Tech, LLC
+    bindir: /usr/local/bin
+    formats:
+      - deb
+      - rpm
+
+# yaml-language-server: $schema=https://goreleaser.com/static/schema-pro.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
