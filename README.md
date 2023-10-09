@@ -182,6 +182,10 @@ smtpdane -expect-ocsp -mx example.org
 ssh -D 5678 external.host.example.net
 # Then use that proxy for the TCP connections
 smtpdane -proxy-tcp socks5://localhost:5678 -mx example.org
+
+# Resolve using a different set of DNS resolvers;
+# one resolver using default port, one with a non-standard port:
+DNS_RESOLVER='192.0.2.53, 192.0.2.100:54' smtpdane -mx example.org
 ```
 
 Note that the `-aka` names are added to the list of "acceptable" names; you'll
