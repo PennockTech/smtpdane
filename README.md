@@ -37,12 +37,20 @@ are multiple IP addresses, then each will be connected to, in parallel.
 Flags may be used to request looking up MX records or SRV records for a
 domain.
 
+---
+
+Below, find:
+ * [Installation](#Installation) (binaries and from source)
+ * [Invoking](#Invoking) (with [Examples](#Examples) available)
+ * [Access needed](#Access-needed) to help with security sandboxing
+
+---
 
 ## Installation
 
 ### Binaries
 
-We use [GoReleaser](https://github.com/goreleaser/goreleaser) to make binaries
+We use [GoReleaser][] to make binaries
 automatically, in GitHub CI, when a version tag is pushed.
 
 The builds are reproducible, so that you can verify the builds yourself, if
@@ -62,8 +70,8 @@ cases" and more "how did you make something purely out of corners??".
 #### Minimum Versions
 
 This is free and open source software, offered to the public, and the
-maintainers can make any changes to dependencies, at any time, as they deem
-fit.  But we will usually try to be a bit nicer than that.
+maintainers can make any changes to build dependencies, at any time, as they
+deem fit.  But we will usually try to be a bit nicer than that.
 
 So we reserve the right to, at any time and without notice, require a minimum
 version of Go which is in the oldest release series supported by the Go
@@ -114,6 +122,12 @@ cd smtpdane
 ./.compile static
 # manual:
 go build -ldflags "-linkmode external -extldflags -static"
+```
+
+You can instead use [GoReleaser][]:
+
+```sh
+goreleaser build --snapshot --single-target --clean
 ```
 
 At this time there is no vendoring of dependencies.  If this matters in your
@@ -257,7 +271,7 @@ long as everything is fine, but there will be output if there are problems,
 and cron will send an email.
 
 
-### Access needed
+## Access needed
 
 You should be able to write a security sandbox profile to constrain this tool,
 based upon the information here.  If it's not listed but is needed, then
@@ -297,3 +311,4 @@ that's a documentation bug, please report it.
            "SMTP Security via Opportunistic DNS-Based Authentication of Named Entities (DANE) Transport Layer Security (TLS)"
 [RFC8314]: https://tools.ietf.org/html/rfc8314
            "Cleartext Considered Obsolete: Use of Transport Layer Security (TLS) for Email Submission and Access"
+[GoReleaser]: https://github.com/goreleaser/goreleaser
