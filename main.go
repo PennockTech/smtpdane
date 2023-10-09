@@ -66,30 +66,38 @@ func checkFlagsForConflicting() bool {
 	if opts.forNagios {
 		out = os.Stdout
 	}
+	failed := false
 
-	if opts.mxLookup && (opts.submissionLookup || opts.submissionsLookup) {
-		fmt.Fprintf(out, "%s: -mx and -submission(s) conflict\n", os.Args[0])
-		return true
+	type matrixrow struct {
+		condition bool
+		label     string
 	}
-	if opts.submissionLookup && opts.submissionsLookup {
-		fmt.Fprintf(out, "%s: -submission and -submissions conflict\n", os.Args[0])
-		return true
-	}
-	if opts.mxLookup && opts.srvTCPLookup != "" {
-		fmt.Fprintf(out, "%s: -mx and -srv SRV conflict\n", os.Args[0])
-		return true
-	}
-	if opts.submissionLookup && opts.srvTCPLookup != "" {
-		fmt.Fprintf(out, "%s: -submission and -srv SRV conflict\n", os.Args[0])
-		return true
-	}
+	type matrix []matrixrow
 
-	if opts.onlyIPv4 && opts.onlyIPv6 {
-		fmt.Fprintf(out, "%s: -4 and -6 conflict\n", os.Args[0])
-		return true
+	checkMatrix := func(m matrix) {
+		for i := 0; i < len(m)-1; i += 1 {
+			for j := i + 1; j < len(m); j += 1 {
+				if m[i].condition && m[j].condition {
+					fmt.Fprintf(out, "%s: -%s and -%s conflict\n", os.Args[0], m[i].label, m[j].label)
+					failed = true
+				}
+			}
+		}
 	}
 
-	return false
+	checkMatrix(matrix{
+		{opts.mxLookup, "mx"},
+		{opts.submissionLookup, "submission"},
+		{opts.submissionsLookup, "submissions"},
+		{opts.srvTCPLookup != "", "srv SRV"},
+	})
+
+	checkMatrix(matrix{
+		{opts.onlyIPv4, "4"},
+		{opts.onlyIPv6, "6"},
+	})
+
+	return failed
 }
 
 func main() {
