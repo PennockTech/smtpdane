@@ -13,7 +13,7 @@ succeeded when it should and failed when it should.
 ---
 
 `go install go.pennock.tech/smtpdane@latest`  
-_(optional helpers documented below)_
+_(optional helpers documented below) (or use prebuilt binaries)_
 
 This is an SMTP client which can connect to an SMTP server, issue `STARTTLS`
 and verify the certificate using DANE (TLSA records signed with DNSSEC).
@@ -40,6 +40,38 @@ domain.
 
 ## Installation
 
+### Binaries
+
+We use [GoReleaser](https://github.com/goreleaser/goreleaser) to make binaries
+automatically, in GitHub CI, when a version tag is pushed.
+
+The builds are reproducible, so that you can verify the builds yourself, if
+comfortable with such flows.
+
+Find [the latest Release on GitHub](https://github.com/PennockTech/smtpdane/releases)
+for pre-built binaries.
+
+We're willing to add builds for other platforms, if there's interest.
+We don't currently intend to offer OCI images for Container usage, because
+using DNSSEC with DNS in Containers is less a scenario of "there are corner
+cases" and more "how did you make something purely out of corners??".
+
+
+### From Source
+
+#### Minimum Versions
+
+This is free and open source software, offered to the public, and the
+maintainers can make any changes to dependencies, at any time, as they deem
+fit.  But we will usually try to be a bit nicer than that.
+
+So we reserve the right to, at any time and without notice, require a minimum
+version of Go which is in the oldest release series supported by the Go
+language maintainers.  Eg, if 1.21.x is the latest release then 1.20.x will
+still be supported, so we can add dependencies which require 1.20.x to
+compile.
+
+
 Go 1.14 or greater is required; the release of Go 1.15 changed how network
 errors are returned in some situations; while we didn't happen to hit those,
 it's now just a matter of time before our situation breaks too, so switched to
@@ -49,6 +81,8 @@ We use `tls.CipherSuiteName()` from Go 1.14 for better diagnostics.
 ( ~~Go 1.8 or greater is required.  We use the
 `crypto/tls.Config.VerifyPeerCertificate` callback introduced in that
 release.~~ )
+
+#### Process
 
 If not cloned as a repo:
 
