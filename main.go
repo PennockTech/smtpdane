@@ -119,9 +119,6 @@ func main() {
 		exitServerWarnings = 1
 		errOutStream = os.Stdout
 	}
-	if opts.submissionsLookup {
-		opts.tlsOnConnect = true
-	}
 
 	if opts.showVersion {
 		version()
@@ -131,9 +128,22 @@ func main() {
 		}
 		return
 	}
+
 	if checkFlagsForConflicting() {
 		os.Exit(exitBadFlags)
 	}
+	if opts.submissionsLookup {
+		opts.tlsOnConnect = true
+	}
+	if opts.srvTCPLookup != "" && opts.srvTCPLookup[0] == '-' {
+		// While RFC 2782 doesn't prohibit a leading hyphen, RFC 6335 does.
+		// RFC 6335 § 5.1, "MUST NOT begin or end with a hyphen"
+		// We don't do a full syntax check here, but this should be enough to handle the
+		// most common case of someone missing that `-srv` takes a parameter.
+		fmt.Fprintf(errOutStream, "%s: SRV service names MUST NOT start with a hyphen, %q is invalid\n", os.Args[0], opts.srvTCPLookup)
+		os.Exit(exitBadFlags)
+	}
+
 	if !opts.noCertNames {
 		initCertNames()
 	}
