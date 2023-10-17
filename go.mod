@@ -6,7 +6,7 @@ require (
 	github.com/liquidgecka/testlib v1.0.0
 	github.com/miekg/dns v1.1.56
 	golang.org/x/crypto v0.14.0
-	golang.org/x/net v0.16.0
+	golang.org/x/net v0.17.0
 )
 
 require (
