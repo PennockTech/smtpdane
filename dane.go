@@ -131,7 +131,12 @@ func (vc *validationContext) chainValid(eeCert, anchorCert *x509.Certificate, ca
 		vOpts.DNSName = tryHostname
 		chains, err := eeCert.Verify(vOpts)
 		if err != nil {
-			vc.Wafflef("no valid TA chains for hostname %q", tryHostname)
+			vc.Wafflef("no valid TA chains for hostname %q [%v]", tryHostname, err)
+			continue
+		}
+		// On some non-Unix platforms, the system verifier can be called, and there's a mode where that returns nil,nil
+		if chains == nil {
+			vc.Wafflef("when asking for TA chains for hostname %q we got a nil response without error", tryHostname)
 			continue
 		}
 
