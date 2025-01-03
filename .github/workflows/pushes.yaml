@@ -1,7 +1,7 @@
 name: Actions CI
 # This `name:` is used in the badge.svg rendering in the README.md.
 
-permissions:
+permissions: {}
   # Control the GITHUB_TOKEN permissions.
   # By having this block, all permissions not listed here are set to none.
   # Available permissions listed at:
@@ -9,9 +9,6 @@ permissions:
   # Which API calls need which permissions at what level, listed at:
   #   <https://docs.github.com/en/rest/reference/permissions-required-for-github-apps>
   #
-  contents: read
-  checks: write
-  statuses: write
 
 on:
   push:
@@ -29,14 +26,21 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      checks: write
+      statuses: write
+
     strategy:
       matrix:
         include:
-          - go: '1.21.x'
+          - go: 'stable'
             canonical: true
             # hunspell requires at least Go 1.17
+            # but we only really need to bother once, so do it on the stable run only
             spellcheck: true
-          - go: '1.20.x'
+          - go: 'oldstable'
             canonical: false
             spellcheck: false
 
@@ -48,12 +52,15 @@ jobs:
         if: matrix.spellcheck
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         # We're not using release process or version stamping which needs Git History in this workflow.
         # Thus we do not need to set with.fetch-depth to 0.  We can live with a shallow clone.
+        with:
+          # security posture improvement:
+          persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
@@ -72,7 +79,7 @@ jobs:
         # These are independent of how the matrix is setup, or if a matrix is even used.
 
       - name: Go caches
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           # (This bit copied from the actions/setup-go@v2 version)
           # In order:
@@ -139,7 +146,7 @@ jobs:
         uses: shogo82148/actions-goveralls@v1
         with:
           path-to-profile: ${{ runner.temp }}/profile.cov
-          flag-name: Go-${{ matrix.go }}
+          flag-name: ${{ steps.go-settings.outputs.go-version }}
           parallel: true
 
 
