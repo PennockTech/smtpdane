@@ -1,6 +1,10 @@
 #!/bin/sh -u
 
-echo "# Show-versions: {{{"
+if [ -n "${GITHUB_OUTPUT:-}" ]; then
+  echo "::group::environment-version-reporting"
+else
+  echo "# Show-versions: {{{"
+fi
 
 date
 uname -a
@@ -8,5 +12,9 @@ uname -a
 "${GIT_CMD:-git}" config --get remote.origin.url
 "${GO_CMD:-go}" version
 
-echo "# Show-versions: }}}"
-echo
+if [ -n "${GITHUB_OUTPUT:-}" ]; then
+  echo "::endgroup::"
+else
+  echo "# Show-versions: }}}"
+  echo
+fi
