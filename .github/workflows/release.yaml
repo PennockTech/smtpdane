@@ -49,12 +49,16 @@ jobs:
           t="$(go list -m -retracted -f '{{if .Retracted}}::error file=go.mod::{{.Path}} is retracted{{end}}' all)"
           if [ ".$t" != "." ]; then printf '%s\n' "$t"; exit 1; fi
 
+      - name: Version / Environment Reporting
+        run: |
+          ./build/show.versions
+
       - name: Run GoReleaser
         id: goreleaser
-        uses: goreleaser/goreleaser-action@v4
+        uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: latest
+          version: "~> v2"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

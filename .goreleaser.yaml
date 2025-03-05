@@ -1,3 +1,5 @@
+version: 2
+project_name: smtpdane
 
 before:
   hooks:
@@ -28,18 +30,19 @@ builds:
     - "-s -w -X main.Version={{.Version}} -X main.Commit={{.Commit}} -X main.CompileDate={{.CommitDate}} -X main.BuiltBy=goreleaser"
 
 archives:
-  - format: tar.gz
+  - formats: ["tar.gz"]
     wrap_in_directory: true
     format_overrides:
     - goos: windows
-      format: zip
+      formats: ["zip"]
 
 checksum:
   name_template: 'SHA256SUMS'
   algorithm: sha256
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
+
 changelog:
   sort: asc
   filters:
