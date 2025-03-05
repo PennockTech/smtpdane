@@ -78,27 +78,10 @@ jobs:
         # which will look like `go1.17.1` if matrix `1.17.x` matches `1.17.1`.
         # These are independent of how the matrix is setup, or if a matrix is even used.
 
-      - name: Go caches
-        uses: actions/cache@v4
-        with:
-          # (This bit copied from the actions/setup-go@v2 version)
-          # In order:
-          # * Module download cache
-          # * Build cache (Linux)
-          # * Build cache (Mac)
-          # * Build cache (Windows)
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-            ~/Library/Caches/go-build
-            %LocalAppData%\go-build
-          # (These bits locally modified:)
-          key: ${{ runner.os }}-${{ steps.go-settings.outputs.go-version }}-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.go-settings.outputs.go-version }}-
-          # In theory, the caches are nowadays multi-version safe.
-          # In practice, some releases break that; users end up needing to run: go clean --modcache
-          # But we can't do that, so we just play it safe and accept that the cache is cleaned when the version of Go changes.
+      # As of actions/setup-go@v4, go modules and build outputs are cached by default.
+      # The go module cache has much read-only content and using our own cache
+      # to restore those areas results in a lot of write errors.
+      # So we no longer use a manual invocation of actions/cache.
 
       - name: Download all Go dependencies
         # nb: `go mod download` is heavyweight and extends beyond the actual dependencies
