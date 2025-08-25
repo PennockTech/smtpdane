@@ -178,7 +178,7 @@ func (vc *validationContext) showCertChainInfo(cert1 *x509.Certificate, certs ..
 	if opts.showCerts {
 		pemData := make([]byte, 0, 100*70*len(certPtrList))
 		for ci, c := range certPtrList {
-			pemData = append(pemData, []byte(fmt.Sprintf("# [%d] CN=%s\n", ci+1, strconv.QuoteToGraphic(c.Subject.CommonName)))...)
+			pemData = append(pemData, fmt.Appendf(nil, "# [%d] CN=%s\n", ci+1, strconv.QuoteToGraphic(c.Subject.CommonName))...)
 			pemData = append(pemData, pem.EncodeToMemory(&pem.Block{
 				Type:  "CERTIFICATE",
 				Bytes: c.Raw,

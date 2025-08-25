@@ -27,7 +27,7 @@ func (l *List) Add(e error) {
 }
 
 // AddErrorf is a convenience wrapper for Add(fmt.Errorf(...))
-func (l *List) AddErrorf(spec string, args ...interface{}) {
+func (l *List) AddErrorf(spec string, args ...any) {
 	l.Add(fmt.Errorf(spec, args...))
 }
 

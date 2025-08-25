@@ -96,10 +96,10 @@ func resolversFromString(input string) []string {
 // I want to get this working without needing a validating resolver.
 // This should be a standalone monitoring tool.
 func resolveRRSecure(
-	cbfunc func(typ uint16, rr dns.RR, rrname string) (interface{}, error),
+	cbfunc func(typ uint16, rr dns.RR, rrname string) (any, error),
 	rrname string,
 	typlist ...uint16,
-) ([]interface{}, error) {
+) ([]any, error) {
 	return resolveRRmaybeSecure(true, cbfunc, rrname, typlist...)
 }
 
@@ -108,10 +108,10 @@ func resolveRRmaybeSecure(
 	// the cbfunc is called the the confirmed RR type and the rr and the rrname;
 	// it should return an item to be added to the resolveRRSecure return list,
 	// and an error; non-nil error inhibits appending to the list.
-	cbfunc func(typ uint16, rr dns.RR, rrname string) (interface{}, error),
+	cbfunc func(typ uint16, rr dns.RR, rrname string) (any, error),
 	rrname string,
 	typlist ...uint16,
-) ([]interface{}, error) {
+) ([]any, error) {
 	config, c, err := initDNS()
 	if err != nil {
 		return nil, err
@@ -124,7 +124,7 @@ func resolveRRmaybeSecure(
 		resolvers = resolversFromList(config.Servers, config.Port)
 	}
 
-	resultList := make([]interface{}, 0, 20)
+	resultList := make([]any, 0, 20)
 	errList := errorlist.New()
 
 	m := new(dns.Msg)
@@ -248,7 +248,7 @@ type addrRecord struct {
 	rrname string
 }
 
-func cbRRTypeAddr(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
+func cbRRTypeAddr(typ uint16, rr dns.RR, rrname string) (any, error) {
 	switch typ {
 	case dns.TypeA:
 		if ip, ok := rr.(*dns.A); ok {
@@ -318,7 +318,7 @@ type TLSAset struct {
 	foundName string
 }
 
-func cbRRTypeTLSA(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
+func cbRRTypeTLSA(typ uint16, rr dns.RR, rrname string) (any, error) {
 	switch typ {
 	case dns.TypeTLSA:
 		if tlsa, ok := rr.(*dns.TLSA); ok {
@@ -385,7 +385,7 @@ func TLSAMediumString(rr *dns.TLSA) string {
 		prefix + rest
 }
 
-func cbRRTypeMXjustnames(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
+func cbRRTypeMXjustnames(typ uint16, rr dns.RR, rrname string) (any, error) {
 	switch typ {
 	case dns.TypeMX:
 		if mx, ok := rr.(*dns.MX); ok {
@@ -397,7 +397,7 @@ func cbRRTypeMXjustnames(typ uint16, rr dns.RR, rrname string) (interface{}, err
 	return nil, fmt.Errorf("BUG: cbRRTypeMX(%v,..,%q) called, expected MX", dns.Type(typ), rrname)
 }
 
-func cbRRTypeMXresults(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
+func cbRRTypeMXresults(typ uint16, rr dns.RR, rrname string) (any, error) {
 	switch typ {
 	case dns.TypeMX:
 		if mx, ok := rr.(*dns.MX); ok {
@@ -468,7 +468,7 @@ func ResolveMXTiers(hostname string) ([]MXTierResults, int, error) {
 	return results, count, nil
 }
 
-func cbRRTypeSRV(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
+func cbRRTypeSRV(typ uint16, rr dns.RR, rrname string) (any, error) {
 	switch typ {
 	case dns.TypeSRV:
 		if srv, ok := rr.(*dns.SRV); ok {
@@ -493,7 +493,7 @@ func ResolveSRV(lookup string) ([]*dns.SRV, error) {
 	return srvList, nil
 }
 
-func cbRRTypeCNAME(typ uint16, rr dns.RR, rrname string) (interface{}, error) {
+func cbRRTypeCNAME(typ uint16, rr dns.RR, rrname string) (any, error) {
 	switch typ {
 	case dns.TypeCNAME:
 		if cname, ok := rr.(*dns.CNAME); ok {

@@ -85,7 +85,7 @@ type smtpSender struct {
 	w io.Writer
 }
 
-func (s smtpSender) sendf(spec string, args ...interface{}) {
+func (s smtpSender) sendf(spec string, args ...any) {
 	fmt.Fprintf(s.w, spec+"\r\n", args...)
 }
 

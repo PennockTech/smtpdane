@@ -44,27 +44,27 @@ type validationContext struct {
 	time     time.Time
 }
 
-func (vc *validationContext) Messagef(spec string, params ...interface{}) {
+func (vc *validationContext) Messagef(spec string, params ...any) {
 	vc.status.Message(fmt.Sprintf("[%s %v] ", vc.hostname, vc.ip) + fmt.Sprintf(spec, params...))
 }
 
-func (vc *validationContext) Wafflef(spec string, params ...interface{}) {
+func (vc *validationContext) Wafflef(spec string, params ...any) {
 	if !opts.terse {
 		vc.Messagef(spec, params...)
 	}
 }
 
-func (vc *validationContext) Warnf(spec string, params ...interface{}) {
+func (vc *validationContext) Warnf(spec string, params ...any) {
 	vc.Messagef(ColorYellow(spec), params...)
 	vc.status.AddWarning()
 }
 
-func (vc *validationContext) Errorf(spec string, params ...interface{}) {
+func (vc *validationContext) Errorf(spec string, params ...any) {
 	vc.Messagef(ColorRed(spec), params...)
 	vc.status.AddErr()
 }
 
-func (vc *validationContext) Successf(spec string, params ...interface{}) {
+func (vc *validationContext) Successf(spec string, params ...any) {
 	vc.Messagef(ColorGreen(spec), params...)
 }
 
@@ -75,7 +75,7 @@ func probeHostGo(hostSpec string, status *programStatus, otherValidNames ...stri
 	go probeHost(hostSpec, status, otherValidNames...)
 }
 
-func statusErrorReportf(status *programStatus, err error, prefixTemplate string, args ...interface{}) {
+func statusErrorReportf(status *programStatus, err error, prefixTemplate string, args ...any) {
 	prefix := fmt.Sprintf(prefixTemplate, args...)
 	switch e := err.(type) {
 	case *errorlist.List:

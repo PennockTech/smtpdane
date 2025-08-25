@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 )
 
-func debugf(spec string, args ...interface{}) {
+func debugf(spec string, args ...any) {
 	if !opts.debug {
 		return
 	}
@@ -42,7 +42,7 @@ func (s *programStatus) AddWarning() {
 	_ = atomic.AddUint32(&s.warningCount, 1)
 }
 
-func (s *programStatus) Messagef(spec string, args ...interface{}) {
+func (s *programStatus) Messagef(spec string, args ...any) {
 	s.Message(fmt.Sprintf(spec, args...))
 }
 
@@ -56,7 +56,7 @@ func (s *programStatus) Waffle(msg string) {
 	}
 }
 
-func (s *programStatus) Wafflef(spec string, args ...interface{}) {
+func (s *programStatus) Wafflef(spec string, args ...any) {
 	if !opts.terse {
 		s.Message(fmt.Sprintf(spec, args...))
 	}
@@ -67,7 +67,7 @@ func (s *programStatus) Error(msg string) {
 	s.AddErr()
 }
 
-func (s *programStatus) Errorf(spec string, args ...interface{}) {
+func (s *programStatus) Errorf(spec string, args ...any) {
 	s.Error(fmt.Sprintf(spec, args...))
 }
 
@@ -76,11 +76,11 @@ func (s *programStatus) Warn(msg string) {
 	s.AddWarning()
 }
 
-func (s *programStatus) Warnf(spec string, args ...interface{}) {
+func (s *programStatus) Warnf(spec string, args ...any) {
 	s.Error(fmt.Sprintf(spec, args...))
 }
 
-func (s *programStatus) Successf(spec string, args ...interface{}) {
+func (s *programStatus) Successf(spec string, args ...any) {
 	s.Success(fmt.Sprintf(spec, args...))
 }
 
