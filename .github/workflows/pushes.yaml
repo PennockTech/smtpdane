@@ -25,6 +25,7 @@ on:
 
 jobs:
   test:
+    name: Build & Test
     runs-on: ubuntu-latest
 
     permissions:
@@ -123,7 +124,7 @@ jobs:
       - name: Go build & test
         run: |
           go build ./...
-          go test -v -coverprofile=${{ runner.temp }}/profile.cov -coverpkg ./... ./...
+          go test -v -coverprofile="${RUNNER_TEMP}/profile.cov" -coverpkg ./... ./...
 
       - name: Send coverage
         uses: shogo82148/actions-goveralls@25f5320d970fb565100cf1993ada29be1bb196a1 # v1.10.0
@@ -133,7 +134,8 @@ jobs:
           parallel: true
 
 
-  finish:
+  report:
+    name: Report Results
     needs: test
     runs-on: ubuntu-latest
     steps:

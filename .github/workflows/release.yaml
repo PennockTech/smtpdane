@@ -4,21 +4,26 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  # Control the GITHUB_TOKEN permissions; GitHub's docs on which permission scopes control what are a little lacking.
-  # By having this block, all permissions not listed here are set to none.
-  #
-  # <https://goreleaser.com/ci/actions/> documents which scopes are needed for it.
-  # Uploading archives as release artifacts is bundled into the contents: permission key!  (goreleaser documents as content: but it's contents:).
-  # packages: is for pushing docker images to github (ghcr.io)
-  # actions: is for uploading artifacts
-  contents: write
-  packages: write
-  actions: write
+# Control the GITHUB_TOKEN permissions; GitHub's docs on which permission scopes control what are a little lacking.
+# By having this block, all permissions not listed here are set to none.
+#
+# <https://goreleaser.com/ci/actions/> documents which scopes are needed for it.
+# Permissions assigned at job level.
+permissions: {}
+
 
 jobs:
   goreleaser:
+    name: GoReleaser Build
     runs-on: ubuntu-latest
+
+    permissions:
+      # Uploading archives as release artifacts is bundled into the contents: permission key!  (goreleaser documents as content: but it's contents:).
+      # packages: is for pushing docker images to github (ghcr.io)
+      # actions: is for uploading artifacts
+      contents: write
+      packages: write
+      actions: write
 
     steps:
 
