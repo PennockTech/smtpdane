@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -279,7 +280,7 @@ func ResolveAddrSecure(hostname string) ([]net.IP, string, error) {
 	for i := range rl {
 		ar := rl[i].(addrRecord)
 		addrList[i] = ar.addr
-		if resolvedName != "" && resolvedName != ar.rrname {
+		if resolvedName != "" && !strings.EqualFold(resolvedName, ar.rrname) {
 			return nil, "", fmt.Errorf("seen multiple RRnames for %q: both %q & %q", hostname, resolvedName, ar.rrname)
 		}
 		if resolvedName == "" {
@@ -301,7 +302,7 @@ func ResolveAddrINSECURE(hostname string) ([]net.IP, error) {
 	for i := range rl {
 		ar := rl[i].(addrRecord)
 		addrList[i] = ar.addr
-		if resolvedName != "" && resolvedName != ar.rrname {
+		if resolvedName != "" && !strings.EqualFold(resolvedName, ar.rrname) {
 			return nil, fmt.Errorf("seen multiple RRnames for %q: both %q & %q", hostname, resolvedName, ar.rrname)
 		}
 		if resolvedName == "" {
