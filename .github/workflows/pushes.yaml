@@ -53,7 +53,7 @@ jobs:
         if: matrix.spellcheck
 
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         # We're not using release process or version stamping which needs Git History in this workflow.
         # Thus we do not need to set with.fetch-depth to 0.  We can live with a shallow clone.
         with:
@@ -61,7 +61,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
