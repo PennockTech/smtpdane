@@ -11,6 +11,12 @@ on:
 # Permissions assigned at job level.
 permissions: {}
 
+# Since invoking this workflow is for a release tag, and those should be
+# immutable when pushed, I would prefer it if attempts to be concurrent could
+# be a poison on the tag.  But failing that, the correct behavior is to cancel the previous run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   goreleaser:
@@ -21,9 +27,10 @@ jobs:
       # Uploading archives as release artifacts is bundled into the contents: permission key!  (goreleaser documents as content: but it's contents:).
       # packages: is for pushing docker images to github (ghcr.io)
       # actions: is for uploading artifacts
-      contents: write
-      packages: write
-      actions: write
+      # Repeating in short-form below, so that zizmor sees that yes, we have supplied reasons.
+      contents: write  # archives upload
+      packages: write  # OCI image push
+      actions: write   # artifacts upload
 
     steps:
 

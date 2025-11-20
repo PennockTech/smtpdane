@@ -23,6 +23,11 @@ on:
       - 'wip_*'
   pull_request:
 
+# We don't want to cancel for a push, but do if superseded by a PR update
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request_number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Build & Test
@@ -30,8 +35,8 @@ jobs:
 
     permissions:
       contents: read
-      checks: write
-      statuses: write
+      # checks: write    # uncomment if re-enable the reviewdog/action-staticcheck step
+      # statuses: write  # unsure, I think this was probably a mistake, I don't see anything here using the status API
 
     strategy:
       matrix:
@@ -114,6 +119,7 @@ jobs:
 
 # This doesn't actually invoke static checks unless in a pull-request
 # Leaving present-but-commented-out as an easy reference.
+# Revisit the permissions: block if re-enabling this.
 #     - name: Go static checks
 #       uses: reviewdog/action-staticcheck@v1
 #       with:
