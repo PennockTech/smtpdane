@@ -77,7 +77,7 @@ func (s *programStatus) Warn(msg string) {
 }
 
 func (s *programStatus) Warnf(spec string, args ...any) {
-	s.Error(fmt.Sprintf(spec, args...))
+	s.Warn(fmt.Sprintf(spec, args...))
 }
 
 func (s *programStatus) Successf(spec string, args ...any) {

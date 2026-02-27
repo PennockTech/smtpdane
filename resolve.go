@@ -24,6 +24,11 @@ import (
 
 const EnvKeyDNSResolver = "DNS_RESOLVER"
 
+// testResolverOverride, when non-nil, replaces the real DNS exchange.
+// Tests in package main set this to inject a mock DNS resolver without
+// requiring network access.  Zero value means use real DNS.
+var testResolverOverride func(m *dns.Msg, address string) (*dns.Msg, time.Duration, error)
+
 var dnsSettings struct {
 	sync.RWMutex
 	conf   *dns.ClientConfig
@@ -112,9 +117,16 @@ func resolveRRmaybeSecure(
 	rrname string,
 	typlist ...uint16,
 ) ([]any, error) {
-	config, c, err := initDNS()
+	config, _, err := initDNS()
 	if err != nil {
 		return nil, err
+	}
+	// Use a per-call dns.Client to avoid data races on the Net field.
+	// Multiple goroutines concurrently mutate Net ("udp" → "tcp" on truncation);
+	// a shared singleton is a race condition (DNS-1).
+	c := &dns.Client{
+		Net:     "udp",
+		Timeout: time.Duration(config.Timeout) * time.Second,
 	}
 
 	var resolvers []string
@@ -149,7 +161,11 @@ DNS_RRTYPE_LOOP:
 					time.Sleep(retryJitter((2 << (i - 1)) * time.Second))
 				}
 				debugf("resolver exchange %s/%s for %s %q\n", resolver, c.Net, dns.Type(typ), rrname)
-				r, _, err = c.Exchange(m, resolver)
+				if testResolverOverride != nil {
+					r, _, err = testResolverOverride(m, resolver)
+				} else {
+					r, _, err = c.Exchange(m, resolver)
+				}
 				if err != nil {
 					var netError net.Error
 					if errors.As(err, &netError) && netError.Timeout() {
@@ -220,7 +236,13 @@ DNS_RRTYPE_LOOP:
 		}
 
 		for _, rr := range r.Answer {
-			// TODO: CNAME?
+			if rr.Header().Rrtype == dns.TypeCNAME {
+				// DNS-2: CNAME records in answer sections are not followed;
+				// log them at debug level so administrators can diagnose
+				// unexpected "no results" when a CNAME is present.
+				debugf("CNAME in answer section for %s, skipping (not following)\n", rrname)
+				continue
+			}
 			if rr.Header().Rrtype != typ {
 				continue
 			}

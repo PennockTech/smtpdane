@@ -327,6 +327,13 @@ func (vc *validationContext) probeProxiedAddr() {
 }
 
 func (vc *validationContext) probeConnectedAddr(conn net.Conn) {
+	// Apply a single per-operation deadline covering all subsequent reads and
+	// writes on this connection: SMTP banner, EHLO, STARTTLS/TLS handshake,
+	// QUIT.  A malicious server that stalls at any point will hit this deadline.
+	if opts.operationTimeout > 0 {
+		conn.SetDeadline(time.Now().Add(opts.operationTimeout))
+	}
+
 	verifier, chCertDetails := peerCertificateVerifierFor(vc)
 	tlsConfig := &tls.Config{
 		ServerName:            vc.hostname,

@@ -43,6 +43,7 @@ var opts struct {
 	submissionsLookup bool
 	terse             bool
 	tlsOnConnect      bool
+	operationTimeout  time.Duration
 }
 
 type programStatus struct {

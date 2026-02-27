@@ -34,6 +34,7 @@ func init() {
 	flag.StringVar(&opts.defaultPort, "port", "smtp(25)", "port to connect to")
 	flag.BoolVar(&opts.tlsOnConnect, "tls-on-connect", false, "start TLS immediately upon connection")
 	flag.DurationVar(&opts.connectTimeout, "connect-timeout", 10*time.Second, "timeout for SMTP connection establishment")
+	flag.DurationVar(&opts.operationTimeout, "operation-timeout", 30*time.Second, "timeout for each SMTP/TLS operation after connection (0 = no limit)")
 	flag.StringVar(&opts.heloName, "helo", "smtpdane.invalid", "name to send in HELO/EHLO")
 	flag.Var(&opts.akaNames, "aka", "add this also-known-as for all cert validations")
 	flag.BoolVar(&opts.noCertNames, "nocertnames", false, "inhibit loading certs to name TLSA records")

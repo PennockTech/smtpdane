@@ -20,6 +20,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/miekg/dns"
@@ -209,7 +210,7 @@ func loadKnownCAs() (known *knownCAt) {
 		}
 		rootsAdded := false
 		for _, entry := range entries {
-			data, err := os.ReadFile(directory + "/" + entry.Name())
+			data, err := os.ReadFile(filepath.Join(directory, entry.Name()))
 			if err == nil && known.AddFromPEM(data) {
 				rootsAdded = true
 			}

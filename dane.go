@@ -25,21 +25,36 @@ func peerCertificateVerifierFor(vc *validationContext) (
 	func([][]byte, [][]*x509.Certificate) error,
 	<-chan certDetails,
 ) {
-	// This has the potential to deadlock, because we write to the channel while
-	// verifying TLS but don't read from it until after TLS is established, and
-	// while we could set up an extra go-routine to avoid that, in practice I
-	// think we'll be fine for now just making it sufficiently buffered.
-	// There's usually one or two chains total, and we only write _verified_ chain details.
-	// 64 won't protect us against abusive servers, but should be sane for everything else.
-	// FIXME: consider absorbing results in a separate go-routine spun up
-	// before TLS to be proof against even the most abusive servers too.
-	ch := make(chan certDetails, 64)
+	// DANE-1 fix: use an unbounded collector goroutine so the verifier callback
+	// (which runs inside the TLS handshake) can never block, regardless of how
+	// many matching TLSA/chain combinations a server presents.
+	//
+	// internal: the verifier sends here; buffered to reduce goroutine wakes for
+	//           the common case of a small number of chains.
+	// external: checkCertInfo reads from here after the TLS handshake completes.
+	//
+	// The collector goroutine accumulates all items from internal, then re-emits
+	// them to external after internal is closed (by the verifier's defer close).
+	// This guarantees the TLS handshake can always complete.
+	internal := make(chan certDetails, 64)
+	external := make(chan certDetails)
+
+	go func() {
+		var collected []certDetails
+		for cd := range internal {
+			collected = append(collected, cd)
+		}
+		for _, cd := range collected {
+			external <- cd
+		}
+		close(external)
+	}()
 
 	f := func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-		return peerCertificateVerifier(vc, ch, rawCerts, verifiedChains)
+		return peerCertificateVerifier(vc, internal, rawCerts, verifiedChains)
 	}
 
-	return f, ch
+	return f, external
 }
 
 // A curried version of this is put in the tls.Config.VerifyPeerCertificate field (Go 1.8+)
