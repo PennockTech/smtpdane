@@ -104,6 +104,18 @@ func checkFlagsForConflicting() bool {
 func main() {
 	// We don't hard-code the Nagios exit codes, in case other systems want
 	// something different.
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", os.Args[0])
+		flag.PrintDefaults()
+		fmt.Fprintf(flag.CommandLine.Output(), `
+Environment Variables:
+ * %q: comma-separated list of DNS resolvers to use instead of /etc/resolv.conf
+   - each is an IP, or IP:port if not using port 53
+ * %q: path to file containing one or more PEM certs of CAs
+ * %q: path to dir containing openssl hashed links to CA certs
+`, EnvKeyDNSResolver, envKeySSLfile, envKeySSLdir)
+	}
+
 	flag.Parse()
 
 	exitBadFlags := 1
