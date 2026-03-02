@@ -53,11 +53,6 @@ func TestDNSClientNetRace(t *testing.T) {
 	}
 	defer func() { testResolverOverride = nil }()
 
-	// Reset dns singleton so tests get a fresh client each time.
-	dnsSettings.Lock()
-	dnsSettings.client = nil
-	dnsSettings.Unlock()
-
 	const N = 10
 	var wg sync.WaitGroup
 	for i := 0; i < N; i++ {
@@ -295,11 +290,6 @@ func TestTruncatedResponseRetriesViaTCP(t *testing.T) {
 		return resp, 0, nil
 	}
 	defer func() { testResolverOverride = nil }()
-
-	// Reset dns singleton.
-	dnsSettings.Lock()
-	dnsSettings.client = nil
-	dnsSettings.Unlock()
 
 	addrs, err := ResolveAddrINSECURE("mail.tcp-retry-test.invalid")
 	if err != nil {
