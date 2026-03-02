@@ -24,23 +24,52 @@ import (
 
 const EnvKeyDNSResolver = "DNS_RESOLVER"
 
-var dnsSettings struct {
+// testResolverOverride, when non-nil, replaces the real DNS exchange.
+// Tests in package main set this to inject a mock DNS resolver without
+// requiring network access.  Zero value means use real DNS.
+var testResolverOverride func(m *dns.Msg, address string) (*dns.Msg, time.Duration, error)
+
+// dnsExchangeFunc wraps the dns.Client.Exchange interface:
+//
+//	func (c *Client) Exchange(m *Msg, address string) (r *Msg, rtt time.Duration, err error)
+//
+// with an additional transport, and exists so that in tests we can replace real DNS lookups with a mock,
+// as well as easily getting the right sort of client.
+type dnsExchangeFunc func(transport string, m *dns.Msg, addr string) (*dns.Msg, time.Duration, error)
+
+// This has a base dnsSettings but is a global and mutations of the transport protocol (tcp/udp) are not safe in go-routines, so each caller needs their own client.
+type dnsConfigState struct {
 	sync.RWMutex
-	conf   *dns.ClientConfig
-	client *dns.Client
+	conf *dns.ClientConfig
 }
 
-func initDNS() (*dns.ClientConfig, *dns.Client, error) {
+var dnsSettings dnsConfigState
+
+// returnFreshClient MUST be called with the read-lock held, after .conf has been initialized
+func (ds *dnsConfigState) returnFreshClient() (*dns.ClientConfig, dnsExchangeFunc, error) {
+	if testResolverOverride != nil {
+		return ds.conf, func(_ string, m *dns.Msg, addr string) (*dns.Msg, time.Duration, error) {
+			return testResolverOverride(m, addr)
+		}, nil
+	}
+	c := &dns.Client{Timeout: time.Duration(ds.conf.Timeout) * time.Second}
+	return ds.conf, func(transport string, m *dns.Msg, addr string) (*dns.Msg, time.Duration, error) {
+		c.Net = transport
+		return c.Exchange(m, addr)
+	}, nil
+}
+
+func initDNS() (*dns.ClientConfig, dnsExchangeFunc, error) {
 	dnsSettings.RLock()
-	if dnsSettings.client != nil {
+	if dnsSettings.conf != nil {
 		defer dnsSettings.RUnlock()
-		return dnsSettings.conf, dnsSettings.client, nil
+		return dnsSettings.returnFreshClient()
 	}
 	dnsSettings.RUnlock()
 	dnsSettings.Lock()
 	defer dnsSettings.Unlock()
-	if dnsSettings.client != nil {
-		return dnsSettings.conf, dnsSettings.client, nil
+	if dnsSettings.conf != nil {
+		return dnsSettings.returnFreshClient()
 	}
 
 	var (
@@ -64,12 +93,9 @@ func initDNS() (*dns.ClientConfig, *dns.Client, error) {
 		}
 	}
 
-	c := new(dns.Client)
-
 	dnsSettings.conf = conf
-	dnsSettings.client = c
 
-	return dnsSettings.conf, dnsSettings.client, nil
+	return dnsSettings.returnFreshClient()
 }
 
 func resolversFromList(input []string, defDNSPort string) []string {
@@ -112,7 +138,7 @@ func resolveRRmaybeSecure(
 	rrname string,
 	typlist ...uint16,
 ) ([]any, error) {
-	config, c, err := initDNS()
+	config, dnsExchange, err := initDNS()
 	if err != nil {
 		return nil, err
 	}
@@ -142,14 +168,15 @@ DNS_RRTYPE_LOOP:
 
 	DNS_RESOLVER_LOOP:
 		for _, resolver := range resolvers {
-			c.Net = "udp"
+			transport := "udp"
 		RETRY_DNS_LOOKUP:
 			for i := 0; i < config.Attempts; i++ {
 				if i > 0 {
 					time.Sleep(retryJitter((2 << (i - 1)) * time.Second))
 				}
-				debugf("resolver exchange %s/%s for %s %q\n", resolver, c.Net, dns.Type(typ), rrname)
-				r, _, err = c.Exchange(m, resolver)
+				debugf("resolver exchange %s/%s for %s %q\n", resolver, transport, dns.Type(typ), rrname)
+
+				r, _, err = dnsExchange(transport, m, resolver)
 				if err != nil {
 					var netError net.Error
 					if errors.As(err, &netError) && netError.Timeout() {
@@ -194,7 +221,7 @@ DNS_RRTYPE_LOOP:
 			// Check for truncation first, in case some bad servers truncate
 			// the DNSSEC data needed to be AD.
 			if r.Truncated {
-				c.Net = "tcp"
+				transport = "tcp"
 				goto RETRY_DNS_LOOKUP
 			}
 
@@ -220,7 +247,13 @@ DNS_RRTYPE_LOOP:
 		}
 
 		for _, rr := range r.Answer {
-			// TODO: CNAME?
+			if rr.Header().Rrtype == dns.TypeCNAME {
+				// DNS-2: CNAME records in answer sections are not followed;
+				// log them at debug level so administrators can diagnose
+				// unexpected "no results" when a CNAME is present.
+				debugf("CNAME in answer section for %s, skipping (not following)\n", rrname)
+				continue
+			}
 			if rr.Header().Rrtype != typ {
 				continue
 			}

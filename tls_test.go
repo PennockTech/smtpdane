@@ -97,8 +97,16 @@ func newTestSMTPServer(t *testing.T, hostname string, tlsOnConnect bool) net.Con
 	}
 	clConn, svrConn := net.Pipe()
 
+	var svrDone sync.WaitGroup
+	svrDone.Add(1)
+	// Ensure the server goroutine finishes before the test's cleanup runs.
+	// Without this, the goroutine can call t.Errorf after the test completes,
+	// which panics in Go's testing framework.
+	t.Cleanup(svrDone.Wait)
+
 	// chunks of this bit ripped from net/smtp/smtp_test.go
 	go func(c net.Conn, hostname string, tlsCert tls.Certificate, tlsOnConnect bool, t *testing.T) {
+		defer svrDone.Done()
 		inTLS := false
 		sendf := smtpSender{c}.sendf
 		if tlsOnConnect {
@@ -137,9 +145,10 @@ func newTestSMTPServer(t *testing.T, hostname string, tlsOnConnect bool) net.Con
 				goto RESTART_SCAN
 			case "QUIT":
 				sendf("221 %s closing connection", hostname)
-				if err := c.Close(); err != nil {
-					t.Errorf("svr failed to close connection: %s", err)
-				}
+				// Close errors here are expected: both client and server close
+				// nearly simultaneously when the client receives the 221 response,
+				// so the loser of the race gets "closed pipe".
+				_ = c.Close()
 				return
 			default:
 				if err := c.Close(); err != nil {
@@ -149,9 +158,7 @@ func newTestSMTPServer(t *testing.T, hostname string, tlsOnConnect bool) net.Con
 			}
 		}
 		t.Log("lost connection without QUIT?")
-		if err := c.Close(); err != nil {
-			t.Errorf("svr failed to close connection: %s", err)
-		}
+		_ = c.Close()
 	}(svrConn, hostname, svrTLS, tlsOnConnect, t)
 
 	return clConn

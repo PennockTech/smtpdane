@@ -34,6 +34,7 @@ func init() {
 	flag.StringVar(&opts.defaultPort, "port", "smtp(25)", "port to connect to")
 	flag.BoolVar(&opts.tlsOnConnect, "tls-on-connect", false, "start TLS immediately upon connection")
 	flag.DurationVar(&opts.connectTimeout, "connect-timeout", 10*time.Second, "timeout for SMTP connection establishment")
+	flag.DurationVar(&opts.operationTimeout, "operation-timeout", 30*time.Second, "timeout for each SMTP/TLS operation after connection (0 = no limit)")
 	flag.StringVar(&opts.heloName, "helo", "smtpdane.invalid", "name to send in HELO/EHLO")
 	flag.Var(&opts.akaNames, "aka", "add this also-known-as for all cert validations")
 	flag.BoolVar(&opts.noCertNames, "nocertnames", false, "inhibit loading certs to name TLSA records")
@@ -103,6 +104,18 @@ func checkFlagsForConflicting() bool {
 func main() {
 	// We don't hard-code the Nagios exit codes, in case other systems want
 	// something different.
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", os.Args[0])
+		flag.PrintDefaults()
+		fmt.Fprintf(flag.CommandLine.Output(), `
+Environment Variables:
+ * %q: comma-separated list of DNS resolvers to use instead of /etc/resolv.conf
+   - each is an IP, or IP:port if not using port 53
+ * %q: path to file containing one or more PEM certs of CAs
+ * %q: path to dir containing openssl hashed links to CA certs
+`, EnvKeyDNSResolver, envKeySSLfile, envKeySSLdir)
+	}
+
 	flag.Parse()
 
 	exitBadFlags := 1
