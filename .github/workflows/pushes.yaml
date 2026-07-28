@@ -58,7 +58,7 @@ jobs:
         if: matrix.spellcheck
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         # We're not using release process or version stamping which needs Git History in this workflow.
         # Thus we do not need to set with.fetch-depth to 0.  We can live with a shallow clone.
         with:
@@ -66,7 +66,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
@@ -133,7 +133,7 @@ jobs:
           go test -v -coverprofile="${RUNNER_TEMP}/profile.cov" -coverpkg ./... ./...
 
       - name: Send coverage
-        uses: shogo82148/actions-goveralls@25f5320d970fb565100cf1993ada29be1bb196a1 # v1.10.0
+        uses: shogo82148/actions-goveralls@9606dbc5ac5cf888a0e9ef901515c3cd516a2790 # v1.11.0
         with:
           path-to-profile: ${{ runner.temp }}/profile.cov
           flag-name: ${{ steps.go-settings.outputs.go-version }}
@@ -147,12 +147,12 @@ jobs:
     steps:
 
       - name: coveralls.io completion notification
-        uses: shogo82148/actions-goveralls@25f5320d970fb565100cf1993ada29be1bb196a1 # v1.10.0
+        uses: shogo82148/actions-goveralls@9606dbc5ac5cf888a0e9ef901515c3cd516a2790 # v1.11.0
         with:
           parallel-finished: true
 
       - name: Notify PT Slack
-        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_PT_AUTOBUILDS }}
 
