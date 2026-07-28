@@ -1,6 +1,8 @@
 #!/bin/sh -eu
 set -eu
 
+PinactMinAge=7
+
 repo_root="$(git rev-parse --show-toplevel)"
 progname="${0##*/}"
 stderr() { printf >&2 '%s: %s\n' "$progname" "$*"; }
@@ -43,7 +45,7 @@ fi
 
 stderr "updating GitHub Actions"
 run cd "$repo_root/.github/workflows"
-run pinact run -u -- *.y*ml
+run pinact run -u -min-age "${PinactMinAge:?}" -- *.y*ml
 run cd "$repo_root"
 
 stderr "auditing GitHub Actions"
